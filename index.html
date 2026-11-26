@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>マンダラチャート Ver.4.3</title>
+<title>マンダラチャート Ver.4.4</title>
 <style>
 :root{
   --bg:#14171c; --cell:#3b414c; --gap:#0c0e11; --theme:#22262d; --center:#dcb85e;
@@ -362,7 +362,7 @@ svg.farrow polygon{fill:var(--accent);opacity:0;animation:fhead 3.6s ease-in-out
   <h3>バックアップ(続きから使う・共有する)</h3>
   <p>上の「バックアップ ▾」から、いまのチャートを JSON という1つのデータファイルに書き出せます。評価もメモも全部入っています。「読み込み(JSON)」でこのアプリに入れると、書き出した時点の状態がそっくり戻ります。</p>
   <p>使い道は3つです。①自分のデータの控え: パソコンやブラウザが変わったり、保存データが消えたりしても戻せます。②人との共有: 書き出したファイルを渡して、相手が読み込めば、同じチャートを使えます。相手が自分のチャートを使いたいときは、「新しいチャートを始める」で全部消してから、自分のファイルを読み込みます。③続きを使う: 別のチャートを作ったあとでも、前に作ったチャートを読み込めば、また続きから使えます。</p>
-  <p>書き出すたびに、日付のついた新しいファイルができます。前のファイルは上書きされないので、古い状態にいつでも戻れます。読み込んで続きを使い、また書き出すと、新しい日付のファイルが増えていきます。同じ日にもう一度書き出したときは、日付のあとに(1)、(2)が付きます。</p>
+  <p>JSONは、いつも同じ名前「チャート名.json」で保存されます。同じ名前のファイルがあれば上書きされるので、ファイルが増えません。いくつかの端末で同じチャートを使うときは、iCloudなどの同じ場所に置いて、始めに必ず「読み込み(JSON)」、終わりに「書き出し(JSON)」をしてください。iPhoneやiPadでは、書き出しの保存先の画面で同じ名前があれば「置き換える」を選びます。Chrome・Edgeのパソコンでは、保存先のフォルダーを一度選ぶと、そこへ自動で上書きされます(Firefoxなどは、ダウンロードフォルダーに保存され、同じ名前だと番号が付きます)。読み込みを忘れて書き出すと、別の端末の新しい内容を消してしまうので、ご注意ください。</p>
   <p>読み込むと、いまの内容は置き換わります。ただ、直前の状態は自動で控えが取られて、「取り込み前・消す前に戻す」で戻せます。書き出しは、ときどき取っておくのがおすすめです。Chromeでは、保存先のフォルダーを一度選ぶと、次からはそこに保存されます。</p>
   <h3>長く使うときのポイント</h3>
   <p>評価は、一度つけて終わりではありません。ときどき見直して、色を更新してください。人生の中で、評価は上がったり下がったりします。赤やピンクが増えてきたら、目標から遠ざかっているサインです。</p>
@@ -400,6 +400,10 @@ const LANGKEY = PREFIX + "lang";
 let LANG = "ja";
 { let l=null; try{ l = (!!window.MANDALA_READONLY) ? window.MANDALA_LANG : localStorage.getItem(LANGKEY); }catch(e){} if(l==="en"||l==="ja") LANG=l; }
 const TR = /*TR*/{
+"✓ 書き出しました(保存先で、同じ名前があれば「置き換える」を選んでください)": "✓ Exported (on the save screen, choose “Replace” if the same name exists)",
+"書き出しをキャンセルしました": "Export cancelled",
+"上書きをやめました(書き出していません)": "Overwrite cancelled (nothing was exported)",
+"保存先の「{0}」は、このアプリが最後に読み込んだ・書き出した内容より新しいです(別の端末で更新された可能性があります)。\n上書きすると、その新しい内容は消えます。上書きしますか?": "“{0}” in the save folder is newer than what this app last imported or exported (it may have been updated on another device).\nOverwriting will erase that newer content. Overwrite?",
 "まだ何も書いていない項目には、「評価」ボタンは出ません。先に項目のタイトルを書いてから、評価をつけてください。書いた文字を消すと、その項目の評価は計算に入りません。": "The “Rate” button does not appear on an item that has no text yet. Write the item's title first, then rate it. If you erase the text, that item's rating is no longer counted.",
 "周りの8つの目標(テーマ)や項目は、全部使わなくて大丈夫です。たとえば目標を5つだけ使いたいときは、使わない3つを「テーマを使わない設定」で×にします。×にしたものは平均に数えないので、残りの5つだけでゴールの色が決まります。項目も同じで、「マスを使わない設定」で×にできます。": "You don't have to use all 8 sub-goals or items. For example, to use only 5 sub-goals, mark the other 3 as unused with “Set unused themes”. Cells marked × are not counted in the average, so the color of the goal is decided by the remaining 5 only. Items work the same way with “Set unused cells”.",
 "マンダラチャートとは": "What is a Mandala Chart?",
@@ -439,7 +443,7 @@ const TR = /*TR*/{
 "バックアップ(続きから使う・共有する)": "Backup (continue later / share)",
 "上の「バックアップ ▾」から、いまのチャートを JSON という1つのデータファイルに書き出せます。評価もメモも全部入っています。「読み込み(JSON)」でこのアプリに入れると、書き出した時点の状態がそっくり戻ります。": "Use “Backup ▾” at the top to save the current chart as a single data file called JSON. Ratings and memos are all included. Load it back with “Import (JSON)” and the chart returns exactly as it was when you exported.",
 "使い道は3つです。①自分のデータの控え: パソコンやブラウザが変わったり、保存データが消えたりしても戻せます。②人との共有: 書き出したファイルを渡して、相手が読み込めば、同じチャートを使えます。相手が自分のチャートを使いたいときは、「新しいチャートを始める」で全部消してから、自分のファイルを読み込みます。③続きを使う: 別のチャートを作ったあとでも、前に作ったチャートを読み込めば、また続きから使えます。": "It is useful in three ways. (1) A copy of your own data: restore it even if you change computers or browsers, or the saved data is lost. (2) Sharing with others: hand over the file and they can import it to use the same chart. If they want to use their own chart, they choose “Start a new chart” to erase everything first, then import their own file. (3) Continuing later: even after making a different chart, import an earlier one to pick up where you left off.",
-"書き出すたびに、日付のついた新しいファイルができます。前のファイルは上書きされないので、古い状態にいつでも戻れます。読み込んで続きを使い、また書き出すと、新しい日付のファイルが増えていきます。同じ日にもう一度書き出したときは、日付のあとに(1)、(2)が付きます。": "Every export creates a new dated file. Earlier files are never overwritten, so you can always go back to an older state. Import, keep working, export again, and new dated files simply pile up. Exporting twice on the same day adds (1), (2) after the date.",
+"JSONは、いつも同じ名前「チャート名.json」で保存されます。同じ名前のファイルがあれば上書きされるので、ファイルが増えません。いくつかの端末で同じチャートを使うときは、iCloudなどの同じ場所に置いて、始めに必ず「読み込み(JSON)」、終わりに「書き出し(JSON)」をしてください。iPhoneやiPadでは、書き出しの保存先の画面で同じ名前があれば「置き換える」を選びます。Chrome・Edgeのパソコンでは、保存先のフォルダーを一度選ぶと、そこへ自動で上書きされます(Firefoxなどは、ダウンロードフォルダーに保存され、同じ名前だと番号が付きます)。読み込みを忘れて書き出すと、別の端末の新しい内容を消してしまうので、ご注意ください。": "JSON is always saved under the same name, “chart-name.json”. If a file with that name exists it is overwritten, so files don't pile up. When you use the same chart on several devices, keep the file in one place such as iCloud, and always “Import (JSON)” first and “Export (JSON)” last. On iPhone and iPad, choose “Replace” on the save screen if the name already exists. On Chrome or Edge on a computer, choose the save folder once and later exports overwrite the file there automatically (Firefox and others save to your Downloads folder, and add a number if the name is taken). If you export without importing first, you can erase newer content from another device, so please be careful.",
 "読み込むと、いまの内容は置き換わります。ただ、直前の状態は自動で控えが取られて、「取り込み前・消す前に戻す」で戻せます。書き出しは、ときどき取っておくのがおすすめです。Chromeでは、保存先のフォルダーを一度選ぶと、次からはそこに保存されます。": "Importing replaces the current content. The state just before is backed up automatically and can be restored with “Restore from before import / erase”. Exporting regularly is recommended. In Chrome, once you choose a save folder, later exports go straight there.",
 "長く使うときのポイント": "Tips for long-term use",
 "評価は、一度つけて終わりではありません。ときどき見直して、色を更新してください。人生の中で、評価は上がったり下がったりします。赤やピンクが増えてきたら、目標から遠ざかっているサインです。": "Rating isn't a one-time thing. Review it from time to time and update the colors. Over a life, ratings go up and down. If red and pink start to increase, it's a sign you're drifting away from your goal.",
@@ -765,7 +769,7 @@ function render(){
   viewEl.classList.toggle("offmode",offMode);
   $("#crumb").textContent = view.mode==="all" ? (data.title||T("(目標が空です)")) : (data.themes[view.theme].label.replace(/\n+/g," ")||T("(空のテーマ)"));
   syncMeta();
-  document.title = T("マンダラチャート")+" Ver.4.3"+(RO?T("(見る専用)"):"")+" — "+data.title;
+  document.title = T("マンダラチャート")+" Ver.4.4"+(RO?T("(見る専用)"):"")+" — "+data.title;
   if(view.mode==="all"){ goalFlash=false; goalRbNew=false; }   // ゴールの演出は、81マス画面で1回見せたら終わり
   applyCeleb();
 }
@@ -1128,19 +1132,41 @@ async function uniqueFile(dir,name){
 function downloadJSON(blob,name){ download(blob,name); }
 async function exportJSON(forcePick){
   if(saveTimer) saveNow();
-  const name=outName("","json");
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-  if(!FSA){ downloadJSON(blob,numName(name)); setStatus(T("✓ 書き出しました(このブラウザでは保存先を選べません。ダウンロードフォルダーに保存しました)")); return; }
+  const name=chartBase()+".json";   // 固定名(日付なし)。同じ名前なら上書きする
+  const savedAt=new Date().toISOString();
+  const blob=new Blob([JSON.stringify(Object.assign({},data,{savedAt}),null,2)],{type:"application/json"});
+  if(!FSA){
+    // iPhone / iPad / Android: 共有シートから「ファイルに保存」→ iCloud などの同じフォルダーで「置き換える」
+    try{
+      const file=new File([blob],name,{type:"application/json"});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file]}); lsSet(PREFIX+"synced",savedAt);
+        setStatus(T("✓ 書き出しました(保存先で、同じ名前があれば「置き換える」を選んでください)")); return;
+      }
+    }catch(e){
+      if(e&&e.name==="AbortError"){ setStatus(T("書き出しをキャンセルしました")); return; }
+    }
+    downloadJSON(blob,name); lsSet(PREFIX+"synced",savedAt);
+    setStatus(T("✓ 書き出しました(このブラウザでは保存先を選べません。ダウンロードフォルダーに保存しました)")); return;
+  }
   try{
     const dir=await ensureJsonDir(forcePick===true);
-    const nm=await uniqueFile(dir,name);
-    const fh=await dir.getFileHandle(nm,{create:true});
+    // 別の端末で、もっと新しく書き出されたファイルがあれば、上書きする前に確認する
+    try{
+      const old=await dir.getFileHandle(name), txt=await (await old.getFile()).text(), o=JSON.parse(txt);
+      const mine=lsGet(PREFIX+"synced")||"";
+      if(o.savedAt && o.savedAt>mine && !confirm(T("保存先の「{0}」は、このアプリが最後に読み込んだ・書き出した内容より新しいです(別の端末で更新された可能性があります)。\n上書きすると、その新しい内容は消えます。上書きしますか?",name))){
+        setStatus(T("上書きをやめました(書き出していません)")); return;
+      }
+    }catch(e){ /* ファイルがまだ無い・読めない場合は、そのまま書き出す */ }
+    const fh=await dir.getFileHandle(name,{create:true});
     const w=await fh.createWritable(); await w.write(blob); await w.close();
-    setStatus(T("✓ 「{0}」フォルダーに保存しました: {1}",dir.name,nm));
+    lsSet(PREFIX+"synced",savedAt);
+    setStatus(T("✓ 「{0}」フォルダーに保存しました: {1}",dir.name,name));
   }catch(e){
     if(e&&e.name==="AbortError"){ setStatus(T("保存先の選択をキャンセルしました(書き出していません)")); return; }
     console.error(e);
-    downloadJSON(blob,numName(name));
+    downloadJSON(blob,name);
     setStatus(T("⚠ フォルダーに保存できなかったため、ダウンロードフォルダーに保存しました({0})",(e&&e.message)||e),true);
   }
 }
@@ -1160,7 +1186,7 @@ $("#fileIn").onchange=ev=>{
     lsSet(PREFIX+"prev:"+normalize(p).id, JSON.stringify(data));
     lsSet(PREFIX+"prevOf", data.id);
     closeBubble(true);
-    data=normalize(p); lsSet(CUR_KEY,data.id); saveNow(); refreshPicker(); view={mode:"all",theme:0}; render();
+    data=normalize(p); lsSet(CUR_KEY,data.id); if(p.savedAt) lsSet(PREFIX+"synced",String(p.savedAt)); saveNow(); refreshPicker(); view={mode:"all",theme:0}; render();
     setStatus(T("✓ 読み込みました"));
   };
   r.readAsText(f);
