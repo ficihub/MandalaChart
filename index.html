@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>マンダラチャート Ver.3.7</title>
+<style>
+:root{
+  --bg:#14171c; --cell:#3b414c; --gap:#0c0e11; --theme:#22262d; --center:#dcb85e;
+  --l1:#f2a8a8; --l2:#f5c3d6; --l3:#f6e9a2; --l4:#b3e1ee; --l5:#aac8f3;
+  --txt:#e8eaee; --sub:#8e96a3; --accent:#8fa8e8; --panel:#2a303b;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--txt);display:flex;flex-direction:column;overflow:hidden;
+  font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif}
+header{height:58px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #232830}
+button{font:inherit;color:inherit;background:#262c36;border:1px solid #343c49;border-radius:8px;padding:7px 13px;cursor:pointer}
+button:hover{background:#2f3744}
+#back{background:var(--accent);color:#10131a;border:none;font-weight:700;font-size:17px;padding:9px 20px;display:none}
+#back:hover{background:#a9bcf0}
+#back small{font-weight:400;opacity:.65;margin-left:6px;font-size:12px}
+body.zoomed #back{display:inline-block}
+#crumb{font-weight:600;font-size:16px;white-space:pre-line;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spacer{flex:1}
+#status{font-size:13px;color:#7fc99a;min-width:120px;text-align:right}
+#status.err{color:#f0a0a0}
+#chName,#chDeadline{font:inherit;font-size:13px;background:#1b2028;color:inherit;border:1px solid #343c49;border-radius:8px;padding:6px 9px;min-width:0}
+#chName::placeholder,#chDeadline::placeholder{color:#5d6574}
+select{font:inherit;background:#262c36;color:inherit;border:1px solid #343c49;border-radius:8px;padding:6px}
+main{flex:1;min-height:0;padding:12px 12px 28px;position:relative}
+#view{height:100%}
+
+/* 81マス全体 */
+.board{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:10px;height:100%}
+.block{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;
+  background:var(--gap);border-radius:8px;overflow:hidden;border:2px solid var(--gap)}
+.block.go{cursor:pointer}
+.block.go:hover{border-color:var(--accent)}
+.cell{background:var(--cell);display:flex;align-items:center;justify-content:center;text-align:center;
+  padding:5px;overflow:hidden;position:relative;white-space:pre-wrap;overflow-wrap:anywhere;
+  font-size:clamp(8px,.9vw,14px);line-height:1.35;min-height:0;min-width:0}
+.cell.theme{background:var(--theme);font-weight:700;color:#eef2ff}
+.cell.center{background:var(--center);color:#2b2517;font-weight:700;font-size:clamp(10px,1.15vw,18px)}
+.cell.clickable{cursor:pointer}
+.cell.clickable:hover{filter:brightness(1.25)}
+.cell .no{position:absolute;left:5px;top:3px;font-size:10px;font-style:normal;color:#9db0e0;font-weight:400}
+.cell.memo::after{content:"";position:absolute;left:5px;bottom:5px;width:6px;height:6px;border-radius:50%;background:#7d8696}
+.cell.sel{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* 9マス拡大 */
+.zoom{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:12px;height:100%;
+  max-width:1200px;margin:0 auto;animation:zin .16s ease-out;transform-origin:var(--ox) var(--oy)}
+.zoom .cell{border-radius:12px;font-size:clamp(15px,2vw,28px);padding:14px;line-height:1.45}
+.zoom .cell.theme,.zoom .cell.center{font-size:clamp(17px,2.3vw,32px);font-weight:700}
+.zoom .cell.memo::after{width:10px;height:10px;left:10px;bottom:10px}
+@keyframes zin{from{transform:scale(.34);opacity:.2}to{transform:none;opacity:1}}
+.board.fade{animation:zout .16s ease-out;transform-origin:var(--ox) var(--oy)}
+@keyframes zout{from{transform:scale(1.8);opacity:.2}to{transform:none;opacity:1}}
+
+/* 吹き出し */
+#bubble{position:fixed;z-index:30;width:min(440px,94vw);background:var(--panel);border:1px solid #435066;border-radius:14px;
+  box-shadow:0 14px 40px rgba(0,0,0,.55);padding:12px;display:none}
+#bubble.open{display:block;animation:pop .1s ease-out}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+#bubble::before{content:"";position:absolute;left:var(--tx,50%);width:16px;height:16px;background:var(--panel);
+  transform:translateX(-50%) rotate(45deg);border:1px solid #435066}
+#bubble.below::before{top:-9px;border-right:none;border-bottom:none}
+#bubble.above::before{bottom:-9px;border-left:none;border-top:none}
+#bubble .row{display:flex;gap:8px;align-items:flex-start}
+#bubble textarea{width:100%;background:#1b2028;color:var(--txt);border:1px solid #3a4352;border-radius:8px;padding:8px 10px;
+  font:inherit;resize:vertical;line-height:1.5}
+#bubble textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+#bLabel{font-weight:700;min-height:44px}
+#bDetail{margin-top:8px;min-height:150px}
+#bClose{flex:none;padding:5px 11px}
+#bubble .foot{margin-top:6px;font-size:12px;color:var(--sub);display:flex;justify-content:space-between}
+#hint{position:fixed;left:14px;bottom:4px;font-size:11px;color:#5d6574;pointer-events:none}
+input[type=file]{display:none}
+#menu{position:fixed;z-index:40;display:none;min-width:250px;background:var(--panel);border:1px solid #435066;border-radius:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.55);padding:6px}
+#menu.open{display:block;animation:pop .1s ease-out}
+#menu .mh{font-size:11px;color:var(--sub);padding:8px 10px 3px;letter-spacing:.04em}
+#menu .mi{display:block;width:100%;text-align:left;border:none;background:none;border-radius:8px;padding:8px 10px;font-size:14px}
+#menu .mi:hover:not(:disabled){background:#364156}
+#menu .mi:disabled{opacity:.4;cursor:default}
+body.ro #btnExportMenu,body.ro #btnBackup{display:none}
+
+/* 進捗の色分け */
+.cell.lv1,.cell.theme.lv1{background:var(--l1);color:#2b2f38}
+.cell.lv2,.cell.theme.lv2{background:var(--l2);color:#2b2f38}
+.cell.lv3,.cell.theme.lv3{background:var(--l3);color:#2b2f38}
+.cell.lv4,.cell.theme.lv4{background:var(--l4);color:#2b2f38}
+.cell.lv5,.cell.theme.lv5{background:var(--l5);color:#2b2f38}
+.cell.lv1.memo::after,.cell.lv2.memo::after,.cell.lv3.memo::after,.cell.lv4.memo::after,.cell.lv5.memo::after,.cell.center.memo::after{background:#5b6270}
+.cell.center.rainbow{background:var(--center);isolation:isolate;color:#2b2f38}
+.cell.center.rainbow::before{content:"";position:absolute;inset:-150%;z-index:-1;
+  background:conic-gradient(#ff9aa2,#ffd79a,#fff3a0,#a8e6a1,#9ad7ff,#c6a8ff,#ff9aa2);animation:rbspin 4s linear infinite}
+@keyframes rbspin{to{transform:rotate(360deg)}}
+.block.rated{border-color:var(--rc)}
+.block.go.rated:hover{border-color:var(--accent)}
+#legend{position:fixed;right:14px;bottom:6px;display:flex;gap:11px;font-size:11px;color:#8e96a3;pointer-events:none}
+#legend span{display:inline-flex;align-items:center;gap:4px}
+#legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+/* 行動の行エディタ */
+#bRows{display:none;max-height:46vh;overflow:auto;margin-top:8px}
+#bubble.rows #bRows{display:block}
+#bubble.rows #bDetail{display:none}
+.arow{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px}
+#bubble .arow textarea{flex:1;width:auto;min-height:34px;resize:none;overflow:hidden;padding:6px 8px}
+.arow .st{flex:none;width:36px;height:34px;padding:0;font-size:18px;line-height:1}
+.arow .st.s0{color:#c5ccd8}.arow .st.s1{color:#d4b463}.arow .st.s2{color:#5aa876}.arow .st.s3{color:#8e96a3}.arow .st.sn{color:#6b7280}
+.arow .del{flex:none;height:34px;padding:0 9px;color:#8e96a3}
+.addrow{width:100%;background:none;border:1px dashed #435066;color:var(--accent)}
+.emptyro{color:var(--sub);font-size:13px;padding:6px 2px}
+/* 使い方 */
+#help{position:fixed;inset:0;z-index:50;background:rgba(5,7,10,.62);display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:4vh 12px}
+#help.open{display:flex}
+#help .hp{background:var(--panel);border:1px solid #435066;border-radius:16px;width:min(940px,100%);padding:18px 24px 26px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#help .hh{display:flex;justify-content:space-between;align-items:center;font-size:20px;font-weight:700}
+#help h3{margin:24px 0 6px;font-size:16px;color:var(--accent)}
+#help p{line-height:1.85;margin:4px 0;font-size:15px}
+#help .figs{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:12px 0}
+#help .fig{flex:1 1 280px;max-width:420px}
+#help .cap{font-size:12px;color:var(--sub);margin-bottom:5px}
+#help .arrow{font-size:28px;color:var(--sub)}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:var(--gap);padding:3px;border-radius:8px}
+.mini .cell{min-height:66px;font-size:12px;padding:4px;border-radius:5px}
+.mini .cell .pct{font-size:11px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:#1f242d;border:1px solid #3a4352;border-radius:999px;padding:3px 11px}
+.chip i{width:12px;height:12px;border-radius:3px;display:inline-block;font-style:normal}
+.chip b{font-size:15px;font-weight:400}
+
+#bubble .clrrow{margin-top:8px;text-align:right}
+#bClear{font-size:12px;padding:4px 11px;color:#d8a9a9;background:none;border:1px solid #5a4146}
+#bClear:hover{background:#3b2c31}
+body.ro #bClear{display:none}
+#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:45;display:none;align-items:center;gap:12px;
+  background:#2f3744;border:1px solid #4a566b;border-radius:999px;padding:8px 10px 8px 18px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#toast.open{display:flex}
+#toast button{background:var(--accent);color:#10131a;border:none;font-weight:700;border-radius:999px;padding:5px 14px}
+#clearDlg{position:fixed;inset:0;z-index:55;background:rgba(5,7,10,.66);display:none;align-items:center;justify-content:center;padding:12px}
+#clearDlg.open{display:flex}
+#clearDlg .mp{background:var(--panel);border:1px solid #435066;border-radius:16px;width:min(560px,100%);padding:18px 24px 22px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#clearDlg .hh{font-size:18px;font-weight:700;margin-bottom:6px}
+#clearDlg p{line-height:1.75;font-size:14px;margin:6px 0}
+#clearDlg .dbtns{margin:12px 0;display:flex;gap:8px}
+#clearDlg .dchoice{display:flex;flex-direction:column;gap:4px;margin:10px 0 14px}
+#clearDlg .dchoice span{font-size:12px;color:var(--sub)}
+#clearDlg button.danger{align-self:flex-start;color:#f0c4c4;border-color:#7a4a50;background:#3a2a2f}
+#clearDlg button.danger:hover{background:#4a3238}
+.menu-quiet,#menu .mi.quiet{color:#c9a0a0;font-size:13px}
+#menu .msep{height:1px;background:#3a4352;margin:6px 4px}
+
+/* 使わないマス / 設定モード */
+.vwrap{display:flex;flex-direction:column;height:100%}
+.vwrap .board,.vwrap .zoom{flex:1;height:auto;min-height:0}
+.vbar{flex:none;height:38px;display:flex;align-items:center;gap:14px;margin-bottom:8px;width:100%}
+.vwrap .zoom{width:100%}
+.vbar .offbtn{padding:6px 14px;font-size:14px}
+.vbar .offbtn.on{background:#c9a063;border-color:#c9a063;color:#17130b;font-weight:700}
+.vbar .vinfo{font-size:13px;color:var(--sub)}
+.vbar .vinfo.on{color:#d9b676}
+#view.offmode .cell,#view.offmode .block{cursor:crosshair !important}
+.cell.off,.cell.theme.off,.cell.center.off{background:#0d0f12;color:#363b45;box-shadow:none;font-weight:400}
+.cell.off::before{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:clamp(18px,2.6vw,38px);color:rgba(165,173,188,.5);font-weight:400;pointer-events:none}
+.zoom .cell.off::before{font-size:clamp(40px,7vw,96px)}
+.cell.off::after{display:none}
+.cell.off .no{color:#3a3f49}
+.block.off{position:relative;border-color:#14171b}
+.block.off .cell{background:#0d0f12;color:#363b45;box-shadow:none;font-weight:400}
+.block.off .cell::before,.block.off .cell::after,.block.off .cell .pct,.block.off .cell .no{display:none}
+.block.off::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:clamp(46px,8vw,120px);color:rgba(165,173,188,.45);pointer-events:none;z-index:2}
+#usePop{position:fixed;z-index:35;display:none;background:var(--panel);border:1px solid #435066;border-radius:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.55);padding:12px 14px;min-width:210px}
+#usePop.open{display:block;animation:pop .1s ease-out}
+#usePop::before{content:"";position:absolute;left:var(--tx,50%);width:14px;height:14px;background:var(--panel);transform:translateX(-50%) rotate(45deg);border:1px solid #435066}
+#usePop.below::before{top:-8px;border-right:none;border-bottom:none}
+#usePop.above::before{bottom:-8px;border-left:none;border-top:none}
+#useMsg{font-size:15px;font-weight:700;margin-bottom:10px}
+#usePop .ub{display:flex;gap:8px}
+#useYes{background:var(--accent);color:#10131a;border:none;font-weight:700}
+.chip i.offchip{border:1px solid #4a505c}
+/* 評価ボタン・評価の吹き出し */
+.rbtn{position:absolute;right:6px;bottom:6px;font-size:12px;padding:2px 10px;border-radius:999px;background:rgba(18,21,26,.62);
+  border:1px solid rgba(255,255,255,.3);color:#eef0f4;cursor:pointer;line-height:1.5;z-index:1}
+.rbtn:hover{background:rgba(18,21,26,.88)}
+.zoom .rbtn{font-size:14px;right:12px;bottom:10px;padding:3px 13px}
+#view.offmode .rbtn,.cell.off .rbtn{display:none}
+#ratePop{position:fixed;z-index:36;display:none;background:var(--panel);border:1px solid #435066;border-radius:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.55);padding:12px 14px;min-width:230px}
+#ratePop.open{display:block;animation:pop .1s ease-out}
+#ratePop::before{content:"";position:absolute;left:var(--tx,50%);width:14px;height:14px;background:var(--panel);transform:translateX(-50%) rotate(45deg);border:1px solid #435066}
+#ratePop.below::before{top:-8px;border-right:none;border-bottom:none}
+#ratePop.above::before{bottom:-8px;border-left:none;border-top:none}
+#rateTitle{font-size:15px;font-weight:700;margin-bottom:8px}
+#rateList{display:flex;flex-direction:column;gap:4px}
+#rateList .rr{display:flex;align-items:center;gap:12px;background:none;border:1px solid transparent;border-radius:8px;padding:5px 8px;text-align:left;font-size:14px}
+#rateList .rr:hover{background:#364156}
+#rateList .rr.cur{border-color:var(--accent)}
+#rateList .rr i{width:26px;height:26px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.3);flex:none}
+#rateClear{margin-top:8px;width:100%;font-size:12px;color:#c5ccd8}
+.arow .bul{flex:none;width:18px;height:34px;display:flex;align-items:center;justify-content:center;color:#8e96a3}
+/* ゴールの演出: 76〜99%は輝き続ける / 目標が新しく青になったら1回だけ / 100%は虹色(ふわっと) */
+.cell.center:not(.rainbow).shine::before,.cell.center:not(.rainbow).flash::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.85) 50%,transparent 70%);transform:translateX(100%)}
+.cell.center.flash::before{animation:shine 1.8s ease-in-out 1 forwards}
+.cell.center.shine::before{animation:shine 3.6s ease-in-out infinite}
+@keyframes shine{0%{transform:translateX(100%)}60%,100%{transform:translateX(-100%)}}
+.cell.center.rainbow.rbnew::before{animation:rbspin 4s linear infinite,rbfade 2.2s ease-out}
+@keyframes rbfade{from{opacity:0}to{opacity:1}}
+/* 使い方の動くデモ */
+.demo{background:#20252e;border:1px solid #3a4352;border-radius:12px;padding:12px 14px;margin:10px 0 14px}
+.dcap{font-size:14px;min-height:46px;line-height:1.7;color:#dfe6f5;margin-bottom:8px}
+.dstage{position:relative;max-width:400px;margin:0 auto}
+.dbar{display:flex;gap:8px;margin-top:10px;justify-content:center}
+.dbar button{font-size:12px;padding:4px 12px}
+.mini .rbtn{font-size:10px;right:4px;bottom:4px;padding:1px 7px;pointer-events:none;cursor:default}
+.mini .cell.hl,.mini .rbtn.hl{animation:hlp 1s ease-in-out infinite}
+@keyframes hlp{0%,100%{box-shadow:0 0 0 0 rgba(143,168,232,0)}50%{box-shadow:0 0 0 4px rgba(143,168,232,.95)}}
+.dpop,.dbub{position:absolute;z-index:3;background:var(--panel);border:1px solid #435066;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.55);padding:8px 10px;font-size:12px}
+.dpop{left:44%;top:6%;width:180px}
+.dpop b{display:block;margin-bottom:5px;font-size:12px}
+.dpop .r{display:flex;align-items:center;gap:8px;padding:2px 4px;border-radius:6px;border:1px solid transparent}
+.dpop .r.cur{border-color:var(--accent)}
+.dpop .r i{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid rgba(255,255,255,.3)}
+.dbub{left:5%;top:18%;width:90%;line-height:1.7}
+.dbub .l{font-weight:700;margin-bottom:4px}
+.dofb{display:inline-block;font-size:12px;padding:4px 12px;border-radius:8px;background:#262c36;border:1px solid #343c49;margin-bottom:8px}
+.dofb.on{background:#c9a063;border-color:#c9a063;color:#17130b;font-weight:700}
+.dofb.hl{animation:hlp 1s ease-in-out infinite}
+.bhint{font-size:11px;color:#9aa3b2;margin:0 0 4px;line-height:1.5}
+#bHintD{margin-top:18px}
+#bubble.nodetail #bHintD,#bubble.nodetail #bDetail{display:none}
+.dbub .h{font-size:11px;color:#9aa3b2;margin:8px 0 2px}
+#helpFigs{position:relative;padding-top:36px;align-items:flex-start}
+.g81{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--gap);padding:4px;border-radius:8px}
+.g81 .mini{padding:1px;gap:1px;border-radius:4px}
+.g81 .mini .cell{min-height:24px;font-size:7.5px;padding:1px;border-radius:2px;line-height:1.2}
+.g81 .mini.dim{opacity:.32}
+.g81 .mini.dim .cell{color:transparent !important}
+.g81 .mini.bri{box-shadow:0 0 0 2px var(--accent)}
+.g81 .mini[data-anchor="dst"]{animation:dstp 3.6s ease-in-out infinite}
+@keyframes dstp{0%,45%{box-shadow:0 0 0 2px var(--accent)}60%{box-shadow:0 0 0 5px rgba(143,168,232,.95)}100%{box-shadow:0 0 0 2px var(--accent)}}
+svg.farrow{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+svg.farrow path{fill:none;stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:farr 3.6s ease-in-out infinite}
+svg.farrow polygon{fill:var(--accent);opacity:0;animation:fhead 3.6s ease-in-out infinite}
+@keyframes farr{0%{stroke-dashoffset:1;opacity:1}45%{stroke-dashoffset:0}92%{opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes fhead{0%,42%{opacity:0}50%,92%{opacity:1}100%{opacity:0}}
+#help .exi{margin:10px 0;padding:10px 14px;background:#20252e;border:1px solid #3a4352;border-left:4px solid var(--accent);border-radius:8px;line-height:1.85;font-size:15px}
+#help .exi b{display:block;font-size:17px;font-weight:800;color:#fff;margin-bottom:2px}
+#help .exn{margin-top:18px}
+/* スマホ・タブレット(タッチ)向け */
+@media (hover:none){ #hint{display:none} #back small{display:none} .rbtn{padding:4px 12px} }
+@media (max-width:760px){
+  header{height:auto;min-height:54px;flex-wrap:wrap;gap:6px;padding:max(6px,env(safe-area-inset-top)) 10px 6px}
+  .spacer{display:none} #crumb{order:8;flex-basis:100%;font-size:14px}
+  #status{order:9;flex-basis:100%;text-align:left;min-width:0;font-size:12px}
+  #chName,#chDeadline{flex:1 1 42%;font-size:16px}
+  button{padding:6px 10px;font-size:13px} #langSw button{padding:6px 9px}
+  main{padding:8px 8px 34px} .vbar{height:auto;flex-wrap:wrap;gap:6px} .vbar .vinfo{font-size:12px}
+  #legend{left:8px;right:8px;bottom:max(4px,env(safe-area-inset-bottom));flex-wrap:wrap;gap:4px 9px;justify-content:flex-end;font-size:10px}
+  #bubble textarea{font-size:16px} .cell{font-size:clamp(8px,2.3vw,12px);padding:3px}
+  .zoom{gap:8px} .zoom .cell{padding:8px;font-size:clamp(13px,3.8vw,19px)} .zoom .cell.theme,.zoom .cell.center{font-size:clamp(14px,4.2vw,21px)}
+  #help{padding:2vh 6px} #help .hp{padding:14px 14px 22px} #help p{font-size:14px} #help .exi{font-size:14px}
+}
+#langSw{display:inline-flex;border:1px solid #343c49;border-radius:8px;overflow:hidden}
+#langSw button{border:none;border-radius:0;background:#1b2028;padding:7px 10px;font-size:13px;color:#8e96a3}
+#langSw button:hover{background:#2a303b}
+#langSw button.on{background:var(--accent);color:#10131a;font-weight:700}
+/* ゴール達成のお祝い: 80マスがランダムに1マスずつ虹色になり(15秒で全部)、そのあと約1分までにゆっくり消える */
+.cell.celb{isolation:isolate;color:#2b2f38}
+.cell.celb::before{content:"";position:absolute;inset:-150%;z-index:-1;opacity:var(--cef,1);
+  background:conic-gradient(#ff9aa2,#ffd79a,#fff3a0,#a8e6a1,#9ad7ff,#c6a8ff,#ff9aa2);animation:rbspin 4s linear infinite,celin .35s ease-out}
+@keyframes celin{from{opacity:0}}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14171c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="まんだら">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+</head>
+<body>
+<header>
+  <button id="back" title="全体表示に戻る (Esc)">← 全体に戻る<small>Esc</small></button>
+  <div id="crumb"></div>
+  <input id="chName" placeholder="チャート名" size="16" title="チャート名">
+  <input id="chDeadline" placeholder="期限" size="14" title="期限">
+  <select id="chartSel" style="display:none" title="チャートを切り替え"></select>
+  <div class="spacer"></div>
+  <span id="status"></span>
+  <span id="langSw" role="group" aria-label="言語 / Language"><button type="button" data-l="ja">日本語</button><button type="button" data-l="en">English</button></span>
+  <button id="btnHelp" title="見方・書き方・色の説明">使い方</button>
+  <button id="btnExportMenu" title="見る専用ファイル・画像・PDFで書き出し">書き出し ▾</button>
+  <button id="btnBackup" title="バックアップ(JSONの書き出し・読み込み)">バックアップ ▾</button>
+  <input type="file" id="fileIn" accept=".json,application/json">
+</header>
+<main><div id="view"></div></main>
+
+<div id="bubble" role="dialog" aria-label="詳細">
+  <div class="bhint" id="bHintL"></div>
+  <div class="row">
+    <textarea id="bLabel" rows="2" placeholder="項目"></textarea>
+    <button id="bClose" title="閉じる (Esc)">✕</button>
+  </div>
+  <div class="bhint" id="bHintD"></div>
+  <div id="bRows"></div>
+  <textarea id="bDetail" placeholder="願いや思いを自由に書けます(自動保存)"></textarea>
+  <div class="foot"><span id="bInfo"></span><span>自動保存 / 外側クリックで閉じる</span></div>
+  <div class="clrrow"><button id="bClear" type="button" title="このマスの文章と詳細を空にする">このマスを空にする</button></div>
+</div>
+<div id="menu" role="menu"></div>
+<div id="help" role="dialog" aria-label="使い方"><div class="hp">
+  <div class="hh"><span>使い方</span><button id="hClose" title="閉じる (Esc)">✕</button></div>
+  <h3>マンダラチャートとは</h3>
+  <p>マンダラチャートは、大きな目標に向かうときの、地図のようなものです。真ん中にゴールを置き、その周りに大事な8つの目標、さらにその先に具体的な項目を並べます。自分で評価をつけて色で眺めると、できているところと弱いところがひと目で分かります。自分の今の状況を知り、次に何をするかを考える助けになります。</p>
+  <h3>まず、書いてみる(書き込み方)</h3>
+  <p>どのマスも、クリックすると吹き出しが開いて、そこに書き込めます。書いた内容は自動で保存されます(保存ボタンは要りません)。</p>
+  <p>・ゴール(81マスの真ん中)をクリック: いちばんの目標の名前を書けます。その下に、ゴールへの願いや思いを自由に書ける欄があります。</p>
+  <p>・周りの目標(テーマ)は、9マスの画面で真ん中のマスをクリック: 目標の名前だけを書き換えられます。具体的に何をするかは、周りの項目に書きます。</p>
+  <p>・項目をクリック(9マスの画面): 一番上の枠に、項目のタイトル(メインのやること)を書きます。その下はメモ欄で、やることを細かく分けた内容を書けます。次にクリックしたとき、メモが吹き出しで見られるので、細かい中身を思い出すのに使えます。メモは評価には入りません。評価は、右下の「評価」ボタンで別につけます。</p>
+  <div class="demoslot" data-demo="write"></div>
+  <h3>このチャートの目的</h3>
+  <p>このチャートは、数字で点数をつけるものではありません。81マスを色で眺めて、「ここはできている」「ここはまだ弱い」を感じ、頭の中で整理して、いつも意識しておくためのものです。弱いところが見えたら、そこに時間をかけたり、スケジュールを組み直したりするきっかけにしてください。</p>
+  <h3>見方</h3>
+  <p>真ん中が一番の目標です。その周りの8つがテーマです。テーマは、周りのブロックの真ん中にも入っていて、その周りに具体的な項目が並びます。左の図で「スピーキング」を探して、右の図で、その場所がどう広がるかを見てください。</p>
+  <div class="figs" id="helpFigs"></div>
+  <h3>評価のつけ方</h3>
+  <p>9マスの画面で、項目の右下にある「評価」ボタンを押すと、進行状況を選ぶ吹き出しが開きます。上から 81〜100%・61〜80%・41〜60%・21〜40%・1〜20% の5段階です。選ぶと、その項目が色になります。何も選ばないうちはグレー(未評価)で、「未評価に戻す」でグレーに戻せます。マスに%の数字は出ません。色だけで感じ取ります。</p>
+  <div class="chips" id="chipsItem"></div>
+  <div class="demoslot" data-demo="rate"></div>
+  <h3>目標とゴールの色</h3>
+  <p>目標(テーマ)の色は、周りの項目の評価の平均で自動で決まります。評価していない項目は0として数えるので、評価を進めた分だけ、少しずつ色が進んでいきます。</p>
+  <p>平均が 1〜25% なら赤、26〜50% ならピンク、51〜75% なら黄、76〜99% なら水色です。青になるのは100%、つまり使っている項目が全部青のときだけです。「もう完成」と思い込まないよう、青は最後の1段にしてあります。81マスの周りのテーマと、真ん中の9マスのテーマは、同時に同じ色に変わります。</p>
+  <div class="chips" id="chipsTheme"></div>
+  <p>いちばん大きなゴールは、ふだんは金色です。8つの目標の平均が76〜99%の間は、ゆっくり「キラーン」と輝き続けて、もう少しだよ、と知らせます。目標が新しく青になったときは、1回だけキラーンと光ります。使っている目標がすべて青(100%)になると、虹色にふわっと変わって、くるくる回ります。最後の項目を評価して100%になった瞬間は、81マスの画面に自動で戻って、周りの80マスが1マスずつ虹色に染まっていくお祝いが出ます(15秒で全部が染まり、約1分でゆっくり消えます)。</p>
+  <div class="demoslot" data-demo="goal"></div>
+  <h3>メモの書き方</h3>
+  <p>項目の吹き出しでは、一番上の枠が項目のタイトル、その下がメモ欄です。メモには、そのやることを細かく分けた内容や、こんなことがあったなと思い出すための補足を書きます。たとえば「週2回の英会話」なら、「火・金の夜に25分」「休んだ週は日曜に振り替える」といった具合です。Enterで次の行が増えます。書いても書かなくても構いません。</p>
+  <p>メモは評価には入りません。評価は、項目の右下の「評価」ボタンで別につけます。メモがある項目には、左下に小さな灰色の点が付きます。</p>
+  <div class="demoslot" data-demo="memo"></div>
+  <h3>使わないマスを決める</h3>
+  <p>周りの8マスは、全部埋めなくて大丈夫です。今回使わないマスは、上のボタンで使わない設定にして、バツにできます。バツになったマスは暗くなり、平均の計算にも数えません。目標(テーマ)も、8つ全部ではなく、7つなどにできます。使いたくなったら、そのマスをクリックして、使うを選べば戻ります。マスに書いた文章は消えません。</p>
+  <p>上のボタンは、9マスの画面では「マスを使わない設定」、81マスの画面では「テーマを使わない設定」です。押してから、使わないマスをクリックします。終わるときは、もう一度ボタンを押すか Esc を押します。</p>
+  <div class="demoslot" data-demo="off"></div>
+  <h3>全体を見て、意識する</h3>
+  <p>81マスの画面で、赤やピンクの多いところが、いま弱いところです。思ったよりできていないところ、ほかはできているのにここだけ遅れているところが、ひと目で分かります。そこに時間をかける、スケジュールを組み直すなど、次の動きを考えるきっかけにしてください。テーマを開けば、項目とメモも見られます。</p>
+  <h3>書き出し(人に見せる・送る)</h3>
+  <p>上の「書き出し」ボタンから、いまのチャートをファイルにして、保存したり、人に見せたり、送ったりできます。色は、どの書き出しにも入ります。</p>
+  <div class="exi"><b>見る専用ファイル(HTML)</b><span>81マスの全体から、テーマをクリックして9マスに拡大し、項目をクリックして、書いたメモまで見られます。ファイルとして保存して、ほかの端末で開いたり、人に見せたり、送ったりできます。ネットにつながなくても開けます。見るだけで、書き込みや評価の変更はできません。</span></div>
+  <div class="exi"><b>画像(JPEG)</b><span>「全体(9×9)」は、81マス全体を色つきの1枚の画像にします。「いま開いているテーマ(3×3)」は、開いている目標1つ分の9マスだけを1枚の画像にします(9マスの画面を開いているときに選べます)。メモは入りません。保管したり、人に送ったりするのに使えます。</span></div>
+  <div class="exi"><b>PDF</b><span>JPEGと同じ内容を、PDFファイルにします。「全体(9×9)」と「いま開いているテーマ(3×3)」のほか、「使うテーマの3×3を一括」は、使っているテーマごとに1ページずつ、全部まとめて1つのPDFになります。印刷したり、資料として送ったりするのに向いています。</span></div>
+  <p class="exn">ファイル名は「月.日.年 ゴールの名前」の形です。テーマごとの書き出しは、そのあとにテーマの名前が付きます。同じ日に同じものをもう一度書き出すと、日付のすぐあとに(1)、(2)…と番号が付いて、前のファイルは上書きされません。</p>
+  <h3>バックアップ(続きから使う・共有する)</h3>
+  <p>上の「バックアップ ▾」から、いまのチャートを JSON という1つのデータファイルに書き出せます。評価もメモも全部入っています。「読み込み(JSON)」でこのアプリに入れると、書き出した時点の状態がそっくり戻ります。</p>
+  <p>使い道は3つです。①自分のデータの控え: パソコンやブラウザが変わったり、保存データが消えたりしても戻せます。②人との共有: 書き出したファイルを渡して、相手が読み込めば、同じチャートを使えます。相手が自分のチャートを使いたいときは、「新しいチャートを始める」で全部消してから、自分のファイルを読み込みます。③続きを使う: 別のチャートを作ったあとでも、前に作ったチャートを読み込めば、また続きから使えます。</p>
+  <p>書き出すたびに、日付のついた新しいファイルができます。前のファイルは上書きされないので、古い状態にいつでも戻れます。読み込んで続きを使い、また書き出すと、新しい日付のファイルが増えていきます。同じ日にもう一度書き出したときは、日付のあとに(1)、(2)が付きます。</p>
+  <p>読み込むと、いまの内容は置き換わります。ただ、直前の状態は自動で控えが取られて、「取り込み前・消す前に戻す」で戻せます。書き出しは、ときどき取っておくのがおすすめです。Chromeでは、保存先のフォルダーを一度選ぶと、次からはそこに保存されます。</p>
+  <h3>長く使うときのポイント</h3>
+  <p>評価は、一度つけて終わりではありません。ときどき見直して、色を更新してください。人生の中で、評価は上がったり下がったりします。赤やピンクが増えてきたら、目標から遠ざかっているサインです。</p>
+</div></div>
+<div id="legend"></div>
+<div id="ratePop" role="dialog" aria-label="進行状況評価"><div id="rateTitle">進行状況評価</div><div id="rateList"></div><button id="rateClear" type="button">未評価に戻す(グレー)</button></div>
+<div id="usePop" role="dialog" aria-label="使うかどうか"><div id="useMsg"></div><div class="ub"><button id="useYes" type="button">使う</button><button id="useNo" type="button">やめる</button></div></div>
+<div id="toast"><span id="toastMsg"></span><button id="toastUndo" type="button">元に戻す</button></div>
+<div id="clearDlg" role="dialog" aria-label="新しいチャートを始める"><div class="mp">
+  <div class="hh"><span>新しいチャートを始める(全部消す)</span></div>
+  <p>いまのチャートを空にして、新しいチャートを書き始めます。チャート名と期限の欄も空になります。</p>
+  <p><b>消す前に自動で控えを取ります。</b>間違えたときは、バックアップメニューの「取り込み前・消す前に戻す」で戻せます。念のため、JSONで書き出してから消すこともできます。</p>
+  <div class="dbtns"><button id="cdExport" type="button">先にJSONで書き出す</button></div>
+  <div class="dchoice"><button id="cdAll" type="button" class="danger">中身をすべて空にする</button><span>81マスの文章と詳細、中央のテーマもすべて空にします</span></div>
+  <div class="dchoice"><button id="cdKeep" type="button" class="danger">中央のテーマだけ残して空にする</button><span>中央の目標だけ残して、あとはすべて空にします</span></div>
+  <div class="dbtns"><button id="cdCancel" type="button">キャンセル</button></div>
+</div></div>
+<div id="hint">Esc: 吹き出しを閉じる → 全体に戻る</div>
+
+<!-- チャートデータ(アプリ本体とは別ファイル)。新しいチャートはここに1行追加 -->
+<script src="data/chart-blank.js"></script>
+
+<script>
+(function(){
+"use strict";
+const PRISTINE="<!DOCTYPE html>\n"+document.documentElement.outerHTML; // 見る専用ファイルの元(起動直後の素の状態)
+const RO=!!window.MANDALA_READONLY;
+/* ===== データ層(チャート内容はdata/側、保存はlocalStorage) ===== */
+const PREFIX = "mandala-form:v2:";
+const CUR_KEY = PREFIX + "current";
+const $ = s => document.querySelector(s);
+
+/* ===== 言語(日本語 / English)。画面の文言だけを切り替える。書いた内容は翻訳せず、そのまま ===== */
+const LANGKEY = PREFIX + "lang";
+let LANG = "ja";
+{ let l=null; try{ l = (!!window.MANDALA_READONLY) ? window.MANDALA_LANG : localStorage.getItem(LANGKEY); }catch(e){} if(l==="en"||l==="ja") LANG=l; }
+const TR = /*TR*/{
+"マンダラチャートとは": "What is a Mandala Chart?",
+"マンダラチャートは、大きな目標に向かうときの、地図のようなものです。真ん中にゴールを置き、その周りに大事な8つの目標、さらにその先に具体的な項目を並べます。自分で評価をつけて色で眺めると、できているところと弱いところがひと目で分かります。自分の今の状況を知り、次に何をするかを考える助けになります。": "A mandala chart is like a map for working toward a big goal. You put your goal in the center, surround it with 8 important sub-goals, and around each of those you list concrete items. Rate each item yourself and look at the colors: you can see at a glance what is going well and what is still weak. It helps you understand where you are now and think about what to do next.",
+"まず、書いてみる(書き込み方)": "First, try writing (how to enter text)",
+"どのマスも、クリックすると吹き出しが開いて、そこに書き込めます。書いた内容は自動で保存されます(保存ボタンは要りません)。": "Click any cell and a bubble opens where you can type. What you write is saved automatically (there is no Save button).",
+"・ゴール(81マスの真ん中)をクリック: いちばんの目標の名前を書けます。その下に、ゴールへの願いや思いを自由に書ける欄があります。": "• Click the goal (the center of the 81 cells): write the name of your main goal. Below it is a free space for your hopes and feelings about the goal.",
+"・周りの目標(テーマ)は、9マスの画面で真ん中のマスをクリック: 目標の名前だけを書き換えられます。具体的に何をするかは、周りの項目に書きます。": "• Sub-goals (themes): in the 9-cell view, click the center cell. You can only edit the sub-goal's name. What you will actually do goes in the items around it.",
+"・項目をクリック(9マスの画面): 一番上の枠に、項目のタイトル(メインのやること)を書きます。その下はメモ欄で、やることを細かく分けた内容を書けます。次にクリックしたとき、メモが吹き出しで見られるので、細かい中身を思い出すのに使えます。メモは評価には入りません。評価は、右下の「評価」ボタンで別につけます。": "• Items: in the 9-cell view, click an item. The top box is the item's title (the main thing to do). Below it is the memo area, where you can break the task down into details. The next time you click, the memo appears in the bubble so you can recall the details. Memos are not part of the rating. Rate separately with the “Rate” button at the bottom right.",
+"このチャートの目的": "What this chart is for",
+"このチャートは、数字で点数をつけるものではありません。81マスを色で眺めて、「ここはできている」「ここはまだ弱い」を感じ、頭の中で整理して、いつも意識しておくためのものです。弱いところが見えたら、そこに時間をかけたり、スケジュールを組み直したりするきっかけにしてください。": "This chart is not for giving yourself numerical scores. Look at the 81 cells by color, sense “this is going well” and “this is still weak,” organize your thoughts, and keep them in mind. When you notice a weak spot, use it as a cue to spend more time there or rearrange your schedule.",
+"見方": "How to read it",
+"真ん中が一番の目標です。その周りの8つがテーマです。テーマは、周りのブロックの真ん中にも入っていて、その周りに具体的な項目が並びます。左の図で「スピーキング」を探して、右の図で、その場所がどう広がるかを見てください。": "The center is your main goal, surrounded by 8 sub-goals (themes). Each theme also sits in the middle of its own outer block, with concrete items arranged around it. Find “Speaking” in the left figure, then see in the right figure how that spot opens up.",
+"評価のつけ方": "How to rate",
+"9マスの画面で、項目の右下にある「評価」ボタンを押すと、進行状況を選ぶ吹き出しが開きます。上から 81〜100%・61〜80%・41〜60%・21〜40%・1〜20% の5段階です。選ぶと、その項目が色になります。何も選ばないうちはグレー(未評価)で、「未評価に戻す」でグレーに戻せます。マスに%の数字は出ません。色だけで感じ取ります。": "In the 9-cell view, press the “Rate” button at the bottom right of an item to open a bubble for choosing progress. There are 5 levels, from the top: 81–100%, 61–80%, 41–60%, 21–40%, 1–20%. The item takes the color you choose. Until you choose, it stays gray (not rated), and “Reset to not rated” returns it to gray. No percentages appear on the cells — you sense progress by color alone.",
+"目標とゴールの色": "Colors of sub-goals and the goal",
+"目標(テーマ)の色は、周りの項目の評価の平均で自動で決まります。評価していない項目は0として数えるので、評価を進めた分だけ、少しずつ色が進んでいきます。": "A sub-goal (theme) color is set automatically from the average rating of the items around it. Items you haven't rated count as 0, so the color advances little by little as you rate more.",
+"平均が 1〜25% なら赤、26〜50% ならピンク、51〜75% なら黄、76〜99% なら水色です。青になるのは100%、つまり使っている項目が全部青のときだけです。「もう完成」と思い込まないよう、青は最後の1段にしてあります。81マスの周りのテーマと、真ん中の9マスのテーマは、同時に同じ色に変わります。": "An average of 1–25% is red, 26–50% pink, 51–75% yellow, 76–99% light blue. Blue appears only at 100%, that is, when every item in use is blue. Blue is kept as the very last step so you don't assume “done” too early. A theme around the 81 cells and the same theme in the center 9 cells change to the same color at the same time.",
+"いちばん大きなゴールは、ふだんは金色です。8つの目標の平均が76〜99%の間は、ゆっくり「キラーン」と輝き続けて、もう少しだよ、と知らせます。目標が新しく青になったときは、1回だけキラーンと光ります。使っている目標がすべて青(100%)になると、虹色にふわっと変わって、くるくる回ります。最後の項目を評価して100%になった瞬間は、81マスの画面に自動で戻って、周りの80マスが1マスずつ虹色に染まっていくお祝いが出ます(15秒で全部が染まり、約1分でゆっくり消えます)。": "The big goal is normally gold. While the average of the 8 sub-goals is between 76% and 99%, it keeps glittering slowly to tell you you're almost there. When a sub-goal newly turns blue, it flashes once. When all the sub-goals in use are blue (100%), it turns a soft rainbow and spins around. At the moment your last rating brings everything to 100%, the app returns to the 81-cell view by itself and the other 80 cells turn rainbow one by one (all within 15 seconds), then slowly fade out over about a minute.",
+"メモの書き方": "How to write memos",
+"項目の吹き出しでは、一番上の枠が項目のタイトル、その下がメモ欄です。メモには、そのやることを細かく分けた内容や、こんなことがあったなと思い出すための補足を書きます。たとえば「週2回の英会話」なら、「火・金の夜に25分」「休んだ週は日曜に振り替える」といった具合です。Enterで次の行が増えます。書いても書かなくても構いません。": "In an item's bubble, the top box is the item's title and the area below is the memo. In the memo, write the task broken into smaller pieces, or notes to jog your memory later. For example, for “Online Japanese lessons twice a week”: “Tue & Fri evenings, 25 min”, “If I skip a week, make it up on Sunday”. Press Enter to add a new line. You can write as much or as little as you like.",
+"メモは評価には入りません。評価は、項目の右下の「評価」ボタンで別につけます。メモがある項目には、左下に小さな灰色の点が付きます。": "Memos are not part of the rating. Rate separately with the “Rate” button at the bottom right of the item. Items with a memo get a small gray dot at the bottom left.",
+"使わないマスを決める": "Choosing cells you won't use",
+"周りの8マスは、全部埋めなくて大丈夫です。今回使わないマスは、上のボタンで使わない設定にして、バツにできます。バツになったマスは暗くなり、平均の計算にも数えません。目標(テーマ)も、8つ全部ではなく、7つなどにできます。使いたくなったら、そのマスをクリックして、使うを選べば戻ります。マスに書いた文章は消えません。": "You don't have to fill all 8 surrounding cells. Cells you won't use this time can be marked as unused with the button at the top, which turns them into an X. Cells marked X are dimmed and are not counted in the average. You can also use 7 sub-goals instead of all 8. To use a cell again, click it and choose “Use”. The text you wrote is never erased.",
+"上のボタンは、9マスの画面では「マスを使わない設定」、81マスの画面では「テーマを使わない設定」です。押してから、使わないマスをクリックします。終わるときは、もう一度ボタンを押すか Esc を押します。": "The button at the top is “Set unused cells” in the 9-cell view and “Set unused themes” in the 81-cell view. Press it, then click the cells you don't want to use. To finish, press the button again or press Esc.",
+"全体を見て、意識する": "Look at the whole and keep it in mind",
+"81マスの画面で、赤やピンクの多いところが、いま弱いところです。思ったよりできていないところ、ほかはできているのにここだけ遅れているところが、ひと目で分かります。そこに時間をかける、スケジュールを組み直すなど、次の動きを考えるきっかけにしてください。テーマを開けば、項目とメモも見られます。": "In the 81-cell view, the areas with lots of red and pink are what's weak right now. You can see at a glance what is less done than you thought, or what is lagging behind while everything else is going well. Use that as a cue to spend time there, rearrange your schedule, or think about your next move. Open a theme to see its items and memos.",
+"書き出し(人に見せる・送る)": "Exporting (to show or send)",
+"上の「書き出し」ボタンから、いまのチャートをファイルにして、保存したり、人に見せたり、送ったりできます。色は、どの書き出しにも入ります。": "Use the “Export” button at the top to turn the current chart into a file you can keep, show or send. Colors are included in every export.",
+"見る専用ファイル(HTML)": "View-only file (HTML)",
+"81マスの全体から、テーマをクリックして9マスに拡大し、項目をクリックして、書いたメモまで見られます。ファイルとして保存して、ほかの端末で開いたり、人に見せたり、送ったりできます。ネットにつながなくても開けます。見るだけで、書き込みや評価の変更はできません。": "From the 81-cell overview, click a theme to zoom into its 9 cells, then click an item to read the memo you wrote. Save it as a file, open it on another device, and show or send it to others. It opens without internet. It is view-only: you cannot write or change ratings.",
+"画像(JPEG)": "Image (JPEG)",
+"「全体(9×9)」は、81マス全体を色つきの1枚の画像にします。「いま開いているテーマ(3×3)」は、開いている目標1つ分の9マスだけを1枚の画像にします(9マスの画面を開いているときに選べます)。メモは入りません。保管したり、人に送ったりするのに使えます。": "“Whole chart (9×9)” makes one colored image of all 81 cells. “Currently open theme (3×3)” makes one image of just the 9 cells of the theme you have open (available while a 9-cell view is open). Memos are not included. Handy for keeping or sending.",
+"PDF": "PDF",
+"JPEGと同じ内容を、PDFファイルにします。「全体(9×9)」と「いま開いているテーマ(3×3)」のほか、「使うテーマの3×3を一括」は、使っているテーマごとに1ページずつ、全部まとめて1つのPDFになります。印刷したり、資料として送ったりするのに向いています。": "The same content as JPEG, as a PDF file. Besides “Whole chart (9×9)” and “Currently open theme (3×3)”, “All themes in use, 3×3 each” puts each theme in use on its own page of a single PDF. Good for printing or sending as a document.",
+"ファイル名は「月.日.年 ゴールの名前」の形です。テーマごとの書き出しは、そのあとにテーマの名前が付きます。同じ日に同じものをもう一度書き出すと、日付のすぐあとに(1)、(2)…と番号が付いて、前のファイルは上書きされません。": "File names look like “month.day.year goal-name”. Per-theme exports add the theme's name after that. If you export the same thing again on the same day, a number (1), (2)… goes right after the date, and the earlier file is never overwritten.",
+"バックアップ(続きから使う・共有する)": "Backup (continue later / share)",
+"上の「バックアップ ▾」から、いまのチャートを JSON という1つのデータファイルに書き出せます。評価もメモも全部入っています。「読み込み(JSON)」でこのアプリに入れると、書き出した時点の状態がそっくり戻ります。": "Use “Backup ▾” at the top to save the current chart as a single data file called JSON. Ratings and memos are all included. Load it back with “Import (JSON)” and the chart returns exactly as it was when you exported.",
+"使い道は3つです。①自分のデータの控え: パソコンやブラウザが変わったり、保存データが消えたりしても戻せます。②人との共有: 書き出したファイルを渡して、相手が読み込めば、同じチャートを使えます。相手が自分のチャートを使いたいときは、「新しいチャートを始める」で全部消してから、自分のファイルを読み込みます。③続きを使う: 別のチャートを作ったあとでも、前に作ったチャートを読み込めば、また続きから使えます。": "It is useful in three ways. (1) A copy of your own data: restore it even if you change computers or browsers, or the saved data is lost. (2) Sharing with others: hand over the file and they can import it to use the same chart. If they want to use their own chart, they choose “Start a new chart” to erase everything first, then import their own file. (3) Continuing later: even after making a different chart, import an earlier one to pick up where you left off.",
+"書き出すたびに、日付のついた新しいファイルができます。前のファイルは上書きされないので、古い状態にいつでも戻れます。読み込んで続きを使い、また書き出すと、新しい日付のファイルが増えていきます。同じ日にもう一度書き出したときは、日付のあとに(1)、(2)が付きます。": "Every export creates a new dated file. Earlier files are never overwritten, so you can always go back to an older state. Import, keep working, export again, and new dated files simply pile up. Exporting twice on the same day adds (1), (2) after the date.",
+"読み込むと、いまの内容は置き換わります。ただ、直前の状態は自動で控えが取られて、「取り込み前・消す前に戻す」で戻せます。書き出しは、ときどき取っておくのがおすすめです。Chromeでは、保存先のフォルダーを一度選ぶと、次からはそこに保存されます。": "Importing replaces the current content. The state just before is backed up automatically and can be restored with “Restore from before import / erase”. Exporting regularly is recommended. In Chrome, once you choose a save folder, later exports go straight there.",
+"長く使うときのポイント": "Tips for long-term use",
+"評価は、一度つけて終わりではありません。ときどき見直して、色を更新してください。人生の中で、評価は上がったり下がったりします。赤やピンクが増えてきたら、目標から遠ざかっているサインです。": "Rating isn't a one-time thing. Review it from time to time and update the colors. Over a life, ratings go up and down. If red and pink start to increase, it's a sign you're drifting away from your goal.",
+"← 全体に戻る": "← Back to overview",
+"全体表示に戻る (Esc)": "Back to the overview (Esc)",
+"チャート名": "Chart name",
+"期限": "Deadline",
+"チャートを切り替え": "Switch chart",
+"使い方": "How to use",
+"見方・書き方・色の説明": "How to read, write and use the colors",
+"書き出し ▾": "Export ▾",
+"見る専用ファイル・画像・PDFで書き出し": "Export as a view-only file, image or PDF",
+"バックアップ ▾": "Backup ▾",
+"バックアップ(JSONの書き出し・読み込み)": "Backup (export / import JSON)",
+"詳細": "Details",
+"項目": "Item",
+"閉じる (Esc)": "Close (Esc)",
+"願いや思いを自由に書けます(自動保存)": "Write your hopes and feelings freely (saved automatically)",
+"自動保存 / 外側クリックで閉じる": "Auto-saved / click outside to close",
+"このマスの文章と詳細を空にする": "Clear the text and details of this cell",
+"このマスを空にする": "Clear this cell",
+"進行状況評価": "Progress rating",
+"未評価に戻す(グレー)": "Reset to not rated (gray)",
+"使うかどうか": "Use or not",
+"使う": "Use",
+"やめる": "Cancel",
+"元に戻す": "Undo",
+"新しいチャートを始める": "Start a new chart",
+"新しいチャートを始める(全部消す)": "Start a new chart (erase everything)",
+"いまのチャートを空にして、新しいチャートを書き始めます。チャート名と期限の欄も空になります。": "This empties the current chart so you can start a new one. The chart name and deadline fields are emptied too.",
+"消す前に自動で控えを取ります。": "A backup is made automatically before erasing.",
+"間違えたときは、バックアップメニューの「取り込み前・消す前に戻す」で戻せます。念のため、JSONで書き出してから消すこともできます。": "If you make a mistake, restore it with “Restore from before import / erase” in the Backup menu. You can also export to JSON first, just in case.",
+"先にJSONで書き出す": "Export to JSON first",
+"中身をすべて空にする": "Empty everything",
+"81マスの文章と詳細、中央のテーマもすべて空にします": "Empties all 81 cells' text and details, and the center goal too",
+"中央のテーマだけ残して空にする": "Empty everything except the center goal",
+"中央の目標だけ残して、あとはすべて空にします": "Keeps only the center goal and empties the rest",
+"キャンセル": "Cancel",
+"Esc: 吹き出しを閉じる → 全体に戻る": "Esc: close the bubble → back to overview",
+"見る専用: クリックで拡大・詳細を表示 ／ Esc: 戻る": "View only: click to zoom and see details / Esc: back",
+"見る専用(編集はできません)": "View only (cannot be edited)",
+"(この項目の詳細は未入力です)": "(No details have been entered for this item)",
+"見る専用 · {0} 書き出し": "View only · exported {0}",
+"マンダラチャート": "Mandala Chart",
+"(見る専用)": " (view only)",
+"無題": "Untitled",
+"チャートデータが見つかりません(data/ フォルダーを確認)": "Chart data not found (check the data/ folder)",
+"✓ 自動保存 {0}": "✓ Auto-saved {0}",
+"⚠ 保存できません。書き出しでバックアップを": "⚠ Cannot save. Please make a backup with Export",
+"保存中…": "Saving…",
+"中央のテーマ": "Center goal",
+"テーマ {0}": "Theme {0}",
+"テーマ {0} の項目": "Item of theme {0}",
+"(目標が空です)": "(goal is empty)",
+"(空のテーマ)": "(empty theme)",
+"マスを使わない設定": "Set unused cells",
+"テーマを使わない設定": "Set unused themes",
+"押してから、使わないマスをクリック(終わるにはもう一度押す / Esc)": "Press, then click the cells you won't use (press again or Esc to finish)",
+"設定中: クリックしたマスを使わない(もう一度クリックで使う)にします。終わるにはボタンをもう一度押すか Esc": "Setting: a clicked cell becomes unused (click again to use it). Press the button again or Esc to finish",
+"使う項目 {0} / 8": "Items in use {0} / 8",
+"使うテーマ {0} / 8": "Themes in use {0} / 8",
+"✓ このテーマを使わない設定にしました(もう一度押すと使うに戻ります)": "✓ This theme is now unused (press again to use it)",
+"✓ このテーマを使う設定に戻しました": "✓ This theme is in use again",
+"✓ このマスを使わない設定にしました(もう一度押すと使うに戻ります)": "✓ This cell is now unused (press again to use it)",
+"✓ このマスを使う設定に戻しました": "✓ This cell is in use again",
+"中央の目標は、使わない設定にできません": "The center goal cannot be set as unused",
+"真ん中のマスは常に使うので、使わない設定にはできません": "The middle cell is always in use, so it cannot be set as unused",
+"このテーマを使いますか?": "Use this theme?",
+"このマスを使いますか?": "Use this cell?",
+"評価": "Rate",
+"進行状況を評価する(5段階の色)": "Rate the progress (5 color levels)",
+"ここに、この項目のタイトルを書きます": "Write this item's title here",
+"ここに、この目標の名前を書きます": "Write this sub-goal's name here",
+"ここに、いちばんの目標の名前を書きます": "Write the name of your main goal here",
+"やることを細かく分けたメモを書きます(例: 火・金の夜に25分 / 休んだ週は日曜に振り替える)": "Write a memo breaking the task down (e.g. Tue & Fri evenings, 25 min / If I skip a week, make it up on Sunday)",
+"ここに、ゴールへの願いや思いを自由に書けます": "Write your hopes and feelings about the goal freely here",
+"やることを細かく分けたメモを書きます": "Write a memo breaking the task down",
+"(この項目のメモは未記入です)": "(No memo has been written for this item)",
+"メモを書く(例: 火・金の夜に25分)": "Write a memo (e.g. Tue & Fri evenings, 25 min)",
+"この行を消す": "Delete this line",
+"＋ 行を追加": "+ Add a line",
+"未評価": "Not rated",
+"1〜20%": "1–20%",
+"21〜40%": "21–40%",
+"41〜60%": "41–60%",
+"61〜80%": "61–80%",
+"81〜100%": "81–100%",
+"使わない(×)": "Unused (×)",
+"段階1(赤)": "Level 1 (red)",
+"段階2(ピンク)": "Level 2 (pink)",
+"段階3(黄)": "Level 3 (yellow)",
+"段階4(水色)": "Level 4 (light blue)",
+"段階5(青)": "Level 5 (blue)",
+"未評価(グレー)": "Not rated (gray)",
+"項目: {0}": "Item: {0}",
+"目標 1〜25%": "Sub-goal 1–25%",
+"26〜50%": "26–50%",
+"51〜75%": "51–75%",
+"76〜99%": "76–99%",
+"100%(全部が青のときだけ)": "100% (only when all are blue)",
+"✓ 書き出しました(このブラウザでは保存先を選べません。ダウンロードフォルダーに保存しました)": "✓ Exported (this browser can't choose a folder; saved to your Downloads folder)",
+"✓ 「{0}」フォルダーに保存しました: {1}": "✓ Saved to the “{0}” folder: {1}",
+"保存先の選択をキャンセルしました(書き出していません)": "Folder selection cancelled (nothing was exported)",
+"⚠ フォルダーに保存できなかったため、ダウンロードフォルダーに保存しました({0})": "⚠ Could not save to the folder, so it was saved to your Downloads folder ({0})",
+"✓ JSONの保存先を「{0}」にしました": "✓ JSON save folder set to “{0}”",
+"保存先の選択をキャンセルしました(変更していません)": "Folder selection cancelled (no change)",
+"⚠ 保存先を選べませんでした({0})": "⚠ Could not choose a folder ({0})",
+"JSONとして読み込めませんでした。現在のデータは変更していません。": "Could not read it as JSON. Your current data has not been changed.",
+"チャートの形式が違います(8テーマ × 8項目が必要)。現在のデータは変更していません。": "The chart format is wrong (8 themes × 8 items are required). Your current data has not been changed.",
+"「{0}」を読み込みます。\n現在の内容は置き換わります(直前の状態は自動で控えを取ります)。よろしいですか?": "“{0}” will be loaded.\nThe current content will be replaced (the previous state is backed up automatically). Continue?",
+"✓ 読み込みました": "✓ Loaded",
+"直前の状態(読み込み前・全部消す前)に戻します。現在の内容は置き換わります。よろしいですか?": "This restores the previous state (before import / erase). The current content will be replaced. Continue?",
+"✓ 元に戻しました": "✓ Restored",
+"例(架空): 真ん中(金色)が一番の目標、周りが大事な8つのテーマ。「お金」は今回使わないのでバツ": "Example (fictional): the middle (gold) is the main goal, surrounded by 8 important sub-goals. “Money” is not used this time, so it has an X",
+"「スピーキング」を開くと、周りに具体的な項目。色は評価で付き、真ん中の色は平均で決まる": "Open “Speaking” to see concrete items around it. Colors come from ratings, and the center color is set by the average",
+"⏸ 止める": "⏸ Pause",
+"⏮ 最初から": "⏮ Restart",
+"▶ 再生": "▶ Play",
+"このマスの文章と詳細を空にします。よろしいですか?": "This empties the text and details of this cell. Continue?",
+"※テーマを空にすると、81マス全体の中央にコピーされているテーマ名も空になります。": "* Emptying a theme also empties the theme name copied to the center of the 81-cell view.",
+"※中央の目標が空になります。": "* The center goal will be emptied.",
+"このマスを空にしました": "Cell cleared",
+"✓ 空にしました(消す前の状態はバックアップメニューから戻せます)": "✓ Emptied (you can restore the previous state from the Backup menu)",
+"書き出し(JSON)": "Export (JSON)",
+"読み込み(JSON)": "Import (JSON)",
+"JSONの保存先: 「{0}」": "JSON save folder: “{0}”",
+"JSONの保存先: 未設定(書き出すとき選びます)": "JSON save folder: not set (you choose when exporting)",
+"JSONの保存先: ダウンロード(このブラウザでは選べません)": "JSON save folder: Downloads (this browser can't choose one)",
+"保存先フォルダーを選び直す": "Choose the save folder again",
+"取り込み前・消す前に戻す": "Restore from before import / erase",
+"いま開いているテーマ(3×3) {0}": "Currently open theme (3×3) {0}",
+" ※テーマを開くと選べます": " (open a theme to enable)",
+"持ち歩き用(入力できない閲覧専用)": "For carrying around (view only, cannot be edited)",
+"全体(9×9) {0}": "Whole chart (9×9) {0}",
+"使うテーマの3×3を一括(1テーマ1ページ) PDF": "All themes in use, 3×3 each (1 theme per page) PDF",
+"見る専用": "ViewOnly",
+"✓ 見る専用ファイルを書き出しました": "✓ View-only file exported",
+"⚠ 書き出しに失敗しました": "⚠ Export failed",
+"書き出し中…": "Exporting…",
+"✓ 書き出しました": "✓ Exported",
+"テーマ": "Theme",
+"全体": "Overview",
+"全テーマ": "AllThemes",
+"使うテーマがありません": "There are no themes in use",
+"1年後に英語で旅行できるようになる": "Be able to travel in Japanese in one year",
+"いちばんの目標": "Main goal",
+"英語で、旅先の人と話せるようになりたい": "I want to be able to talk with people on my trip in Japanese",
+"毎日の学習": "Daily study",
+"リスニング": "Listening",
+"スピーキング": "Speaking",
+"単語": "Vocabulary",
+"文法": "Grammar",
+"体調管理": "Health",
+"お金": "Money",
+"旅の計画": "Trip plan",
+"週2回の英会話": "Online Japanese lessons twice a week",
+"毎朝5分の独り言": "5 min of self-talk each morning",
+"動画のまね": "Shadow Japanese videos",
+"表現を20個": "Learn 20 phrases",
+"録音して聞く": "Record & listen back",
+"週1回の添削": "Weekly correction",
+"間違いノート": "Mistake notebook",
+"月1回の録画": "Monthly video recording",
+"・火・金の夜に25分": "• Tue & Fri evenings, 25 min",
+"・休んだ週は日曜に振り替える": "• If I skip a week, make it up on Sunday",
+"① 真ん中のゴールをクリックします。": "① Click the goal in the middle.",
+"② 吹き出しが開きます。上にゴールの名前、その下に願いや思いを自由に書けます。内容は自動で保存されます。": "② A bubble opens. Write the goal's name at the top, and your hopes and feelings freely below it. Everything is saved automatically.",
+"③ 周りの目標(テーマ)は、9マスの画面で真ん中のマスをクリックします。": "③ For a sub-goal (theme), click the center cell in the 9-cell view.",
+"④ 目標の名前だけを書き換えられます。": "④ You can only edit the sub-goal's name.",
+"⑤ 項目は、9マスの画面で項目をクリックします。": "⑤ For an item, click it in the 9-cell view.",
+"⑥ 一番上の枠が項目のタイトル、その下がメモです。メモは評価には入りません。次にクリックすると、このメモが吹き出しで見られます。": "⑥ The top box is the item's title and below it is the memo. Memos are not part of the rating. Next time you click, you can see this memo in the bubble.",
+"① 項目の右下の「評価」ボタンを押します。いまは未評価で、グレーです。": "① Press the “Rate” button at the bottom right of an item. It is not rated yet, so it is gray.",
+"② 評価の吹き出しが開くので、進み具合に近い色を1つ選びます。": "② The rating bubble opens. Pick the one color closest to your progress.",
+"③ 項目が選んだ色になります。評価していない項目は0として数えるので、真ん中の目標はまだ赤です。": "③ The item takes the color you picked. Unrated items count as 0, so the center sub-goal is still red.",
+"④ ほかの項目も評価すると、真ん中の目標の色が、平均で水色まで進みます。": "④ Rate the other items too, and the center sub-goal's color advances to light blue by the average.",
+"① 項目をクリックします。": "① Click an item.",
+"② 吹き出しが開くので、メモ欄に、やることを細かく分けた内容を書きます。評価には数えません。": "② A bubble opens. In the memo area, write the task broken into smaller pieces. It isn't counted in the rating.",
+"③ メモを書いた項目には、左下に小さな灰色の点が付きます。": "③ An item with a memo gets a small gray dot at the bottom left.",
+"① 9マスの画面の上にある「マスを使わない設定」を押します。": "① Press “Set unused cells” at the top of the 9-cell view.",
+"② 使わないマスをクリックすると、暗くなって×が付きます。": "② Click a cell you won't use; it turns dark and gets an ×.",
+"③ ×のマスは平均から外れるので、真ん中の目標の色が変わります(赤い→水色)。書いた文字は消えません。もう一度ボタンを押すと設定が終わります。": "③ A cell with × is left out of the average, so the center sub-goal's color changes (red → light blue). The text you wrote stays. Press the button again to finish.",
+"① はじめは、周りの目標がすべてグレー(未評価)で、ゴールは金色です。": "① At first, all the sub-goals are gray (not rated) and the goal is gold.",
+"② 項目を評価していくと、目標が赤・ピンク・黄・水色と変わっていきます。ゴールは金色のままです。": "② As you rate items, the sub-goals change to red, pink, yellow and light blue. The goal stays gold.",
+"③ 目標が新しく青になったとき、ゴールが1回だけキラーンと光ります。": "③ When a sub-goal newly turns blue, the goal flashes once.",
+"④ 8つの目標の平均が76〜99%の間は、ゴールがずっとゆっくり輝き続けます。もう少しだよ、のサインです。": "④ While the average of the 8 sub-goals is between 76% and 99%, the goal keeps glittering slowly. It's a sign that you're almost there.",
+"⑤ すべての目標が青(100%)になると、ゴールが虹色にふわっと変わって、くるくる回ります。": "⑤ When all sub-goals are blue (100%), the goal turns a soft rainbow and spins around.",
+"真ん中のブロック: 一番の目標(金色)と、周りの8つのテーマ": "Middle block: the main goal (gold) and the 8 sub-goals around it",
+"周りのブロックのひとつ: 「スピーキング」が真ん中に入り、周りに具体的な項目": "One of the outer blocks: “Speaking” sits in the middle, with concrete items around it"
+}/*TR_END*/;
+function T(s,...a){
+  let r = s;
+  if(LANG==="en"){ if(TR[s]!==undefined) r=TR[s]; else if(/[\u3040-\u30ff\u3400-\u9fff]/.test(s)) (window.__trMiss=window.__trMiss||[]).push(s); }
+  return r.replace(/\{(\d+)\}/g,(m,i)=>a[+i]);
+}
+
+const cr=v=>{ v=Math.round(+v)||0; return v<0?0:v>5?5:v; };
+function normalize(c){
+  const out = {schema:1, id:String(c.id||"chart"), name:String(c.name||""), deadline:String(c.deadline||""), title:String(c.title||""), detail:String(c.detail||""), themes:[]};
+  for(let i=0;i<8;i++){
+    const t = (c.themes||[])[i] || {};
+    const items=[];
+    for(let k=0;k<8;k++){
+      const it=(t.items||[])[k];
+      if(typeof it==="string") items.push({text:it, detail:"", off:false, rate:0});
+      else if(it&&typeof it==="object") items.push({text:String(it.text||""), detail:String(it.detail||""), off:!!it.off, rate:cr(it.rate)});
+      else items.push({text:"", detail:"", off:false, rate:0});
+    }
+    out.themes.push({label:String(t.label||""), detail:String(t.detail||""), off:!!t.off, items});
+  }
+  return out;
+}
+function validImport(c){
+  return c && typeof c==="object" && Array.isArray(c.themes) && c.themes.length===8 &&
+    c.themes.every(t=>t && Array.isArray(t.items) && t.items.length===8);
+}
+const defaults = (window.MANDALA_CHARTS||[]).map(normalize);
+let data = null, saveTimer = null;
+
+function lsGet(k){ if(RO) return null; try{return localStorage.getItem(k);}catch(e){return null;} }
+function lsSet(k,v){ if(RO) return true; try{localStorage.setItem(k,v);return true;}catch(e){return false;} }
+
+function loadChart(id){
+  const saved = lsGet(PREFIX+id);
+  if(saved){ try{ const p=JSON.parse(saved); if(validImport(p)) return normalize(p);}catch(e){} }
+  const d = defaults.find(x=>x.id===id) || defaults[0];
+  return JSON.parse(JSON.stringify(d));
+}
+function init(){
+  if(!defaults.length){ $("#view").textContent=T("チャートデータが見つかりません(data/ フォルダーを確認)"); return false; }
+  let id = lsGet(CUR_KEY);
+  if(!id || !(lsGet(PREFIX+id) || defaults.some(d=>d.id===id))) id = defaults[0].id;
+  data = loadChart(id);
+  // 初回は初期データをそのまま保存しておく
+  if(!lsGet(PREFIX+data.id)) saveNow();
+  lsSet(CUR_KEY, data.id);
+  return true;
+}
+function setStatus(msg, err){ const s=$("#status"); s.textContent=msg; s.className=err?"err":""; }
+function saveNow(){
+  if(RO) return;
+  clearTimeout(saveTimer); saveTimer=null;
+  const ok = lsSet(PREFIX+data.id, JSON.stringify(data));
+  const d=new Date(), hm=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  ok ? setStatus(T("✓ 自動保存 {0}",hm)) : setStatus(T("⚠ 保存できません。書き出しでバックアップを"),true);
+}
+function scheduleSave(){ if(RO) return; dropUndo(); setStatus(T("保存中…")); clearTimeout(saveTimer); saveTimer=setTimeout(saveNow,250); }
+window.addEventListener("pagehide",()=>{ if(saveTimer) saveNow(); });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden && saveTimer) saveNow(); });
+
+/* ===== 評価(5段階の色) ===== */
+const LCOL=["","#f2a8a8","#f5c3d6","#f6e9a2","#b3e1ee","#aac8f3"];
+const LNAME=["未評価","1〜20%","21〜40%","41〜60%","61〜80%","81〜100%"];
+const LEGEND=[["#3b414c","未評価"],["#0d0f12","使わない(×)"],[LCOL[1],"段階1(赤)"],[LCOL[2],"段階2(ピンク)"],[LCOL[3],"段階3(黄)"],[LCOL[4],"段階4(水色)"],[LCOL[5],"段階5(青)"]];
+// テーマ(目標)の色: 1〜25 赤 / 26〜50 ピンク / 51〜75 黄 / 76〜99 水色 / 100(全部が青)だけ青
+function themeLvOfPct(p){ if(p>=100-1e-9) return 5; const q=Math.round(p); return q<=0?0 : q<=25?1 : q<=50?2 : q<=75?3 : 4; }
+function parseRows(detail){   // 詳細はメモ。昔の行頭マーク(□◐●－)があれば取り除く
+  return String(detail||"").split("\n").map(l=>({text:l.replace(/^[□◐●－][ \u3000]?/,"")})).filter(r=>r.text!=="");
+}
+function rowsToDetail(rows){ return rows.map(r=>r.text).filter(t=>t.trim()!=="").join("\n"); }
+function isOwnOff(ref){ const p=ref.split(":"); return p[0]==="t" ? !!data.themes[+p[1]].off : p[0]==="i" ? !!data.themes[+p[1]].items[+p[2]].off : false; }
+function itemLv(ti,k){ const it=data.themes[ti].items[k]; return it.off?0:(it.rate||0); }
+// テーマの%: 使っている項目の評価(1〜5を20%刻み)の平均。未評価の項目は0として数える。全部未評価ならnull(グレー)
+function themePct(ti){
+  const T=data.themes[ti]; if(T.off) return null;
+  const u=T.items.filter(i=>!i.off);
+  if(!u.length || u.every(i=>!i.rate)) return null;
+  return u.reduce((a,i)=>a+(i.rate||0),0)*20/u.length;
+}
+function themeLv(ti){ const p=themePct(ti); return p==null?0:themeLvOfPct(p); }
+function themeActive(ti){ const T=data.themes[ti]; return !T.off && T.items.some(it=>!it.off); }
+// ゴールの%: 使っているテーマの%の平均(未評価のテーマは0)。全部未評価ならnull
+function goalPct(){ const act=data.themes.map((_,i)=>i).filter(themeActive); if(!act.length) return null; const ps=act.map(i=>themePct(i)); if(ps.every(p=>p==null)) return null; return ps.reduce((a,p)=>a+(p||0),0)/act.length; }
+function goalDone(){ const g=goalPct(); return g!=null && g>=100-1e-9; }
+function goalShine(){ const g=goalPct(); return g!=null && Math.round(g)>=76 && !goalDone(); }
+function blueCount(){ return data.themes.filter((_,i)=>themeActive(i)&&themeLv(i)===5).length; }
+function lvOf(ref){ const p=ref.split(":"); return p[0]==="c"?0 : p[0]==="t"?themeLv(+p[1]) : itemLv(+p[1],+p[2]); }
+
+/* ===== ref: "c" | "t:i" | "i:t:k" ===== */
+function node(ref){
+  const p=ref.split(":");
+  if(p[0]==="c") return {get label(){return data.title}, set label(v){data.title=v},
+                         get detail(){return data.detail}, set detail(v){data.detail=v}, name:T("中央のテーマ")};
+  if(p[0]==="t"){ const t=data.themes[+p[1]]; return {get label(){return t.label}, set label(v){t.label=v},
+                         get detail(){return t.detail}, set detail(v){t.detail=v}, name:T("テーマ {0}",+p[1]+1)}; }
+  const it=data.themes[+p[1]].items[+p[2]];
+  return {get label(){return it.text}, set label(v){it.text=v}, get detail(){return it.detail}, set detail(v){it.detail=v},
+          name:T("テーマ {0} の項目",+p[1]+1)};
+}
+
+/* ===== 画面 ===== */
+let view = {mode:"all", theme:0}, openRef = null, lastClosed = {ref:null,t:0};
+const viewEl = $("#view");
+const idx = p => p<4 ? p : p-1;   // 3x3の位置 → 周囲8の番号(中央除く)
+
+function mkCell(text, ref, cls, extra){
+  const c=document.createElement("div");
+  c.className="cell "+(cls||"");
+  c.textContent=text;
+  if(ref){
+    c.dataset.ref=ref;
+    if(isOwnOff(ref)) c.classList.add("off");
+    else {
+      const lv=lvOf(ref); if(lv>0) c.classList.add("lv"+lv);
+      if(ref==="c"){ if(goalDone()){ c.classList.add("rainbow"); if(goalRbNew) c.classList.add("rbnew"); } else if(goalShine()) c.classList.add("shine"); else if(goalFlash) c.classList.add("flash"); }
+      if(!ref.startsWith("t:") && node(ref).detail.trim()) c.classList.add("memo");   // メモ(詳細)あり
+    }
+    if(ref===openRef) c.classList.add("sel");
+  }
+  if(extra) extra(c);
+  return c;
+}
+
+let offMode=false, modeKey="", goalFlash=false, goalRbNew=false;
+function render(){
+  const mk=view.mode+":"+view.theme; if(mk!==modeKey){ offMode=false; modeKey=mk; }   // 画面が変わったら設定モードは終わる
+  document.body.classList.toggle("zoomed", view.mode==="zoom");
+  viewEl.innerHTML="";
+  const wrap=document.createElement("div"); wrap.className="vwrap";
+  if(!RO) wrap.appendChild(makeBar());
+  viewEl.appendChild(wrap);
+  if(view.mode==="all") renderAll(wrap); else renderZoom(wrap);
+  viewEl.classList.toggle("offmode",offMode);
+  $("#crumb").textContent = view.mode==="all" ? (data.title||T("(目標が空です)")) : (data.themes[view.theme].label.replace(/\n+/g," ")||T("(空のテーマ)"));
+  syncMeta();
+  document.title = T("マンダラチャート")+" Ver.3.7"+(RO?T("(見る専用)"):"")+" — "+data.title;
+  if(view.mode==="all"){ goalFlash=false; goalRbNew=false; }   // ゴールの演出は、81マス画面で1回見せたら終わり
+  applyCeleb();
+}
+function syncMeta(){
+  const a=$("#chName"), b=$("#chDeadline");
+  if(document.activeElement!==a) a.value=data.name;
+  if(document.activeElement!==b) b.value=data.deadline;
+}
+$("#chName").addEventListener("input",e=>{ data.name=e.target.value; scheduleSave(); });
+$("#chDeadline").addEventListener("input",e=>{ data.deadline=e.target.value; scheduleSave(); });
+function makeBar(){
+  const bar=document.createElement("div"); bar.className="vbar";
+  const zoom=view.mode==="zoom";
+  const btn=document.createElement("button"); btn.type="button"; btn.className="offbtn"+(offMode?" on":"");
+  btn.textContent=T(zoom?"マスを使わない設定":"テーマを使わない設定");
+  btn.title=T("押してから、使わないマスをクリック(終わるにはもう一度押す / Esc)");
+  btn.onclick=toggleOffMode;
+  const info=document.createElement("span"); info.className="vinfo";
+  const used = zoom ? data.themes[view.theme].items.filter(it=>!it.off).length : data.themes.filter(t=>!t.off).length;
+  if(offMode) { info.classList.add("on"); info.textContent=T("設定中: クリックしたマスを使わない(もう一度クリックで使う)にします。終わるにはボタンをもう一度押すか Esc"); }
+  else info.textContent=T(zoom?"使う項目 {0} / 8":"使うテーマ {0} / 8",used);
+  bar.append(btn,info);
+  return bar;
+}
+function toggleOffMode(){ closeBubble(true); closeUse(); closeRate(); offMode=!offMode; view.noAnim=true; render(); }
+function setOff(ref,val){
+  const p=ref.split(":");
+  if(p[0]==="t") data.themes[+p[1]].off=val; else data.themes[+p[1]].items[+p[2]].off=val;
+  scheduleSave(); view.noAnim=true; render();
+}
+// 普段のクリック: 使わないテーマは確認を経る / 設定モード中は使う⇔使わないを切り替える
+function enterTheme(ti,from,el){
+  if(offMode){
+    if(lastToggle.ref==="t:"+ti && Date.now()-lastToggle.t<400) return;
+    lastToggle={ref:"t:"+ti,t:Date.now()};
+    const nv=!data.themes[ti].off; setOff("t:"+ti,nv);
+    setStatus(T(nv?"✓ このテーマを使わない設定にしました(もう一度押すと使うに戻ります)":"✓ このテーマを使う設定に戻しました"));
+    return;
+  }
+  if(!RO && data.themes[ti].off){ askUse("t:"+ti, el||viewEl); return; }
+  zoomTo(ti,from);
+}
+/* 「このマスを使いますか?」 */
+let useRef=null, lastUseClosed={ref:null,t:0};
+const usePop=$("#usePop");
+function askUse(ref,el){
+  if(lastUseClosed.ref===ref && Date.now()-lastUseClosed.t<400) return;
+  closeBubble(true); useRef=ref;
+  $("#useMsg").textContent=T(ref.startsWith("t:")?"このテーマを使いますか?":"このマスを使いますか?");
+  usePop.classList.add("open"); usePop.classList.remove("above","below");
+  const r=el.getBoundingClientRect(), w=usePop.offsetWidth, h=usePop.offsetHeight, m=10;
+  const cx=r.left+r.width/2, cy=r.top+Math.min(r.height,300)/2;
+  let left=Math.min(Math.max(cx-w/2,m),innerWidth-w-m);
+  const below=cy+h+30<innerHeight;
+  let top=below?cy+16:cy-h-16; top=Math.min(Math.max(top,m),innerHeight-h-m);
+  usePop.style.left=left+"px"; usePop.style.top=top+"px"; usePop.classList.add(below?"below":"above");
+  usePop.style.setProperty("--tx",Math.min(Math.max(cx-left,22),w-22)+"px");
+  $("#useYes").focus();
+}
+function closeUse(){ if(!useRef) return; lastUseClosed={ref:useRef,t:Date.now()}; useRef=null; usePop.classList.remove("open"); }
+$("#useNo").onclick=closeUse;
+$("#useYes").onclick=()=>{
+  const ref=useRef; closeUse(); if(!ref) return;
+  data_setOffQuiet(ref,false);
+  if(ref.startsWith("t:")){ const ti=+ref.split(":")[1]; zoomTo(ti, ti<4?ti:ti+1); }
+  else { const el=viewEl.querySelector('[data-ref="'+ref+'"]'); if(el) openBubble(ref,el); }
+};
+function data_setOffQuiet(ref,val){
+  const p=ref.split(":");
+  if(p[0]==="t") data.themes[+p[1]].off=val; else data.themes[+p[1]].items[+p[2]].off=val;
+  scheduleSave(); view.noAnim=true; render();
+}
+document.addEventListener("pointerdown",e=>{ if(useRef && !usePop.contains(e.target)) closeUse(); },true);
+function renderAll(wrap){
+  const board=document.createElement("div"); board.className="board";
+  if(view.fadeFrom!=null){
+    const b=view.fadeFrom; board.classList.add("fade");
+    board.style.setProperty("--ox",(b%3)*50+"%"); board.style.setProperty("--oy",Math.floor(b/3)*50+"%");
+    view.fadeFrom=null;
+  }
+  for(let b=0;b<9;b++){
+    const blk=document.createElement("div"); blk.className="block";
+    if(b===4){
+      for(let p=0;p<9;p++){
+        if(p===4) blk.appendChild(mkCell(data.title,"c","center clickable"));
+        else { const ti=idx(p);
+          blk.appendChild(mkCell(data.themes[ti].label,"t:"+ti,"theme clickable",c=>{
+            c.onclick=()=>enterTheme(ti,b,c);
+          }));
+        }
+      }
+    } else {
+      const ti=idx(b);
+      blk.classList.add("go");
+      blk.onclick=()=>enterTheme(ti,b,blk);
+      if(data.themes[ti].off) blk.classList.add("off");
+      const tl=themeLv(ti);
+      if(tl>0){ blk.classList.add("rated"); blk.style.setProperty("--rc",LCOL[tl]); }
+      for(let p=0;p<9;p++){
+        if(p===4) blk.appendChild(mkCell(data.themes[ti].label,"t:"+ti,"theme"));
+        else blk.appendChild(mkCell(data.themes[ti].items[idx(p)].text,"i:"+ti+":"+idx(p),""));
+      }
+    }
+    board.appendChild(blk);
+  }
+  wrap.appendChild(board);
+}
+function renderZoom(wrap){
+  const ti=view.theme, TH=data.themes[ti];
+  const z=document.createElement("div"); z.className="zoom";
+  const b = ti<4?ti:ti+1;
+  z.style.setProperty("--ox",(b%3)*50+"%"); z.style.setProperty("--oy",Math.floor(b/3)*50+"%");
+  if(view.noAnim){ z.style.animation="none"; view.noAnim=false; }
+  for(let p=0;p<9;p++){
+    if(p===4) z.appendChild(mkCell(TH.label,"t:"+ti,"theme clickable"));
+    else { const k=idx(p); z.appendChild(mkCell(TH.items[k].text,"i:"+ti+":"+k,"clickable",c=>{
+      if(RO || TH.items[k].off) return;
+      const b=document.createElement("button"); b.type="button"; b.className="rbtn"; b.textContent=T("評価"); b.title=T("進行状況を評価する(5段階の色)");
+      c.appendChild(b);
+    }));}
+  }
+  wrap.appendChild(z);
+}
+function zoomTo(ti,fromBlock){ closeBubble(true); view={mode:"zoom",theme:ti,noAnim:fromBlock==null}; render(); }
+function backToAll(){
+  closeBubble(true);
+  const ti=view.theme; view={mode:"all",theme:ti,fadeFrom: ti<4?ti:ti+1}; render();
+}
+
+/* ===== 吹き出し ===== */
+const bubble=$("#bubble"), bLabel=$("#bLabel"), bDetail=$("#bDetail");
+function setBubbleHints(ref){
+  const isItem=ref.startsWith("i:");
+  $("#bHintL").textContent = T(isItem?"ここに、この項目のタイトルを書きます" : ref.startsWith("t:")?"ここに、この目標の名前を書きます" : "ここに、いちばんの目標の名前を書きます");
+  $("#bHintD").textContent = T(isItem?"やることを細かく分けたメモを書きます(例: 火・金の夜に25分 / 休んだ週は日曜に振り替える)" : "ここに、ゴールへの願いや思いを自由に書けます");
+}
+function openBubble(ref, cellEl){
+  openRef=ref;
+  const n=node(ref);
+  bLabel.value=n.label; bDetail.value=n.detail;
+  const isItem=ref.startsWith("i:");
+  bubble.classList.toggle("rows",isItem);
+  bubble.classList.toggle("nodetail",ref.startsWith("t:"));   // 周りの目標(テーマ)は名前だけ
+  setBubbleHints(ref);
+  bubble.classList.add("open"); bubble.classList.remove("above","below");
+  if(isItem){
+    rowsState=parseRows(n.detail);
+    if(!rowsState.length && !RO) rowsState=[{text:""}];
+    buildRows();
+  }
+  updateInfo();
+  document.querySelectorAll(".cell.sel").forEach(e=>e.classList.remove("sel"));
+  cellEl.classList.add("sel");
+  const r=cellEl.getBoundingClientRect(), w=bubble.offsetWidth, h=bubble.offsetHeight, m=10;
+  let left=Math.min(Math.max(r.left+r.width/2-w/2,m), innerWidth-w-m);
+  const below = r.bottom+h+18 < innerHeight || r.top-h-18 < 0;
+  let top = below ? r.bottom+14 : r.top-h-14;
+  top=Math.min(Math.max(top,m), innerHeight-h-m);
+  bubble.style.left=left+"px"; bubble.style.top=top+"px";
+  bubble.classList.add(below?"below":"above");
+  bubble.style.setProperty("--tx", Math.min(Math.max(r.left+r.width/2-left,22),w-22)+"px");
+  if(isItem){ if(!RO) focusRow(rowsState.length-1); }
+  else { const f=ref.startsWith("t:")?bLabel:bDetail; f.focus(); f.setSelectionRange(f.value.length,f.value.length); }
+}
+/* 行動の行エディタ(状態マーク+文章) */
+let rowsState=[];
+const bRows=$("#bRows");
+function autosize(t){ t.style.height="auto"; t.style.height=t.scrollHeight+"px"; }
+function focusRow(i){ const t=bRows.querySelectorAll(".arow textarea")[i]; if(t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); } }
+function commitRows(){
+  node(openRef).detail=rowsToDetail(rowsState);
+  scheduleSave(); view.noAnim=true; render(); updateInfo();
+}
+function buildRows(){
+  bRows.innerHTML="";
+  if(RO && !rowsState.length){ const e=document.createElement("div"); e.className="emptyro"; e.textContent=T("(この項目のメモは未記入です)"); bRows.appendChild(e); return; }
+  rowsState.forEach(r=>{
+    const d=document.createElement("div"); d.className="arow";
+    const bu=document.createElement("span"); bu.className="bul"; bu.textContent="・";
+    const t=document.createElement("textarea"); t.rows=1; t.value=r.text; t.readOnly=RO;
+    t.placeholder=T("メモを書く(例: 火・金の夜に25分)");
+    t.oninput=()=>{ r.text=t.value.replace(/\n/g," "); autosize(t); commitRows(); };
+    t.onkeydown=e=>{
+      if(RO || e.isComposing || e.keyCode===229) return;
+      const i=rowsState.indexOf(r);
+      if(e.key==="Enter"){ e.preventDefault(); rowsState.splice(i+1,0,{text:""}); buildRows(); focusRow(i+1); }
+      else if(e.key==="Backspace" && t.value==="" && rowsState.length>1){ e.preventDefault(); rowsState.splice(i,1); buildRows(); commitRows(); focusRow(Math.max(0,i-1)); }
+    };
+    d.append(bu,t);
+    if(!RO){ const x=document.createElement("button"); x.type="button"; x.className="del"; x.textContent="×"; x.title=T("この行を消す");
+      x.onclick=()=>{ rowsState.splice(rowsState.indexOf(r),1); buildRows(); commitRows(); }; d.appendChild(x); }
+    bRows.appendChild(d);
+  });
+  if(!RO){ const a=document.createElement("button"); a.type="button"; a.className="addrow"; a.textContent=T("＋ 行を追加");
+    a.onclick=()=>{ rowsState.push({text:""}); buildRows(); focusRow(rowsState.length-1); }; bRows.appendChild(a); }
+  bRows.querySelectorAll("textarea").forEach(autosize);
+}
+function updateInfo(){ $("#bInfo").textContent=""; }
+function closeBubble(silent){
+  if(!openRef) return;
+  if(saveTimer) saveNow();
+  lastClosed={ref:openRef,t:Date.now()};
+  openRef=null; bubble.classList.remove("open");
+  document.querySelectorAll(".cell.sel").forEach(e=>e.classList.remove("sel"));
+}
+$("#bClose").onclick=()=>closeBubble();
+bLabel.addEventListener("input",()=>{ node(openRef).label=bLabel.value; scheduleSave(); view.noAnim=true; render(); });
+bDetail.addEventListener("input",()=>{
+  const n=node(openRef), had=!!n.detail.trim(); n.detail=bDetail.value; scheduleSave();
+  if(had!==!!n.detail.trim()){ view.noAnim=true; render(); }
+});
+// 外側クリックで閉じる(そのまま別の項目を開ける)
+document.addEventListener("pointerdown",e=>{
+  if(!openRef || bubble.contains(e.target)) return;
+  closeBubble();
+},true);
+// 押した場所を覚えておく(押した所と離した所が少しずれても、押したマスとして扱うため)
+let downCell=null, lastToggle={ref:null,t:0};
+viewEl.addEventListener("pointerdown",e=>{ downCell=e.target.closest?e.target.closest(".cell[data-ref]"):null; },true);
+viewEl.addEventListener("click",e=>{
+  let c=e.target.closest(".cell[data-ref]");
+  if(!c && offMode && downCell && viewEl.contains(downCell)) c=downCell;
+  downCell=null;
+  if(view.mode!=="zoom" && !(c && c.dataset.ref==="c")) return;
+  if(!c || !viewEl.contains(c)) return; // 拡大で作り直された後の旧マスは無視
+  const ref=c.dataset.ref;
+  if(offMode){
+    if(view.mode==="zoom" && ref.startsWith("i:")){
+      // ダブルクリックや二重反応で「使わない→使う」と一瞬で戻ってしまわないよう、同じマスの連続反応(0.4秒以内)は1回として数える
+      if(lastToggle.ref===ref && Date.now()-lastToggle.t<400) return;
+      lastToggle={ref,t:Date.now()};
+      const nv=!isOwnOff(ref);
+      setOff(ref,nv);
+      setStatus(T(nv?"✓ このマスを使わない設定にしました(もう一度押すと使うに戻ります)":"✓ このマスを使う設定に戻しました"));
+    }
+    else setStatus(T(ref==="c"?"中央の目標は、使わない設定にできません":"真ん中のマスは常に使うので、使わない設定にはできません"));
+    return;
+  }
+  if(!RO && ref.startsWith("i:") && isOwnOff(ref)){ askUse(ref,c); return; }   // 使わないマス → 「使いますか?」
+  const rb=e.target.closest(".rbtn");
+  if(rb && !RO && ref.startsWith("i:")){ openRate(ref,rb); return; }
+  if(lastClosed.ref===ref && Date.now()-lastClosed.t<400) return; // 同じマスを押して閉じた直後は開き直さない
+  openBubble(ref,c);
+});
+
+/* ===== 進行状況評価の吹き出し ===== */
+let rateRef=null, lastRateClosed={ref:null,t:0};
+const ratePop=$("#ratePop");
+function buildRateList(){
+  const list=$("#rateList"); list.innerHTML="";
+  [5,4,3,2,1].forEach(lv=>{   // 上が81〜100%、下が1〜20%
+    const b=document.createElement("button"); b.type="button"; b.className="rr"; b.dataset.lv=lv;
+    const i=document.createElement("i"); i.style.background=LCOL[lv];
+    b.append(i,document.createTextNode(T(LNAME[lv]))); b.onclick=()=>pickRate(lv); list.appendChild(b);
+  });
+}
+$("#rateClear").onclick=()=>pickRate(0);
+function openRate(ref,el){
+  if(lastRateClosed.ref===ref && Date.now()-lastRateClosed.t<400) return;
+  closeBubble(true); closeUse(); rateRef=ref;
+  const cur=itemLv(+ref.split(":")[1],+ref.split(":")[2]);
+  ratePop.querySelectorAll(".rr").forEach(b=>b.classList.toggle("cur",+b.dataset.lv===cur));
+  ratePop.classList.add("open"); ratePop.classList.remove("above","below");
+  const r=el.getBoundingClientRect(), w=ratePop.offsetWidth, h=ratePop.offsetHeight, m=10;
+  const cx=r.left+r.width/2;
+  let left=Math.min(Math.max(cx-w/2,m),innerWidth-w-m);
+  const below=r.bottom+h+22<innerHeight;
+  let top=below?r.bottom+14:r.top-h-14; top=Math.min(Math.max(top,m),innerHeight-h-m);
+  ratePop.style.left=left+"px"; ratePop.style.top=top+"px"; ratePop.classList.add(below?"below":"above");
+  ratePop.style.setProperty("--tx",Math.min(Math.max(cx-left,22),w-22)+"px");
+}
+function closeRate(){ if(!rateRef) return; lastRateClosed={ref:rateRef,t:Date.now()}; rateRef=null; ratePop.classList.remove("open"); }
+function pickRate(lv){
+  const ref=rateRef; closeRate(); if(!ref) return;
+  const p=ref.split(":"), bBlue=blueCount(), bDone=goalDone();
+  data.themes[+p[1]].items[+p[2]].rate=lv;
+  if(blueCount()>bBlue) goalFlash=true;            // 目標が新しく青になった → ゴールが1回キラーン
+  const reached=goalDone() && !bDone;               // 100%になった瞬間
+  if(reached){
+    goalRbNew=true;                                 // ゴールが虹色にふわっと
+    const ti=view.theme; view={mode:"all",theme:ti,fadeFrom: ti<4?ti:ti+1};   // 81マスの画面へ自動で戻る
+  } else view.noAnim=true;
+  scheduleSave(); render();
+  if(reached) startCelebrate();
+}
+/* ゴール達成のお祝い: 100%に届いた瞬間だけ。真ん中以外の80マスが、ランダムな順に1マスずつ、15秒で全部虹色に。そこから約1分までにゆっくり消える */
+let celeb=null;
+const celebCells=()=>[...viewEl.querySelectorAll(".board .cell")];
+function applyCeleb(){
+  if(!celeb || view.mode!=="all") return;
+  const cs=celebCells(); for(let k=0;k<celeb.n;k++){ const c=cs[celeb.order[k]]; if(c) c.classList.add("celb"); }
+}
+function stopCelebrate(){
+  if(celeb){ clearInterval(celeb.timer); celeb=null; }
+  document.documentElement.style.removeProperty("--cef");
+  document.querySelectorAll(".cell.celb").forEach(c=>c.classList.remove("celb"));
+}
+function startCelebrate(){
+  stopCelebrate();
+  const cand=[]; celebCells().forEach((c,i)=>{ if(i!==40 && !c.classList.contains("off") && !c.closest(".block.off")) cand.push(i); });   // 40 = 真ん中のゴール
+  for(let i=cand.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [cand[i],cand[j]]=[cand[j],cand[i]]; }
+  const c0={t0:Date.now(),order:cand,n:0,timer:null}; celeb=c0;
+  c0.timer=setInterval(()=>{
+    const e=Date.now()-c0.t0;
+    if(e>=60000){ stopCelebrate(); return; }
+    const want=Math.min(cand.length,Math.ceil(cand.length*e/15000));
+    if(want>c0.n){ if(view.mode==="all"){ const cs=celebCells(); for(let k=c0.n;k<want;k++){ const c=cs[cand[k]]; if(c) c.classList.add("celb"); } } c0.n=want; }
+    document.documentElement.style.setProperty("--cef", e<=15000?1:Math.max(0,1-(e-15000)/45000));
+  },60);
+}
+document.addEventListener("pointerdown",e=>{ if(rateRef && !ratePop.contains(e.target)) closeRate(); },true);
+
+/* ===== キーボード ===== */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    if(menuOpen){ closeMenu(); return; }
+    if(clearOpen){ closeClear(); return; }
+    if(helpOpen){ closeHelp(); return; }
+    if(rateRef){ closeRate(); return; }
+    if(useRef){ closeUse(); return; }
+    if(openRef) closeBubble();
+    else if(offMode){ offMode=false; view.noAnim=true; render(); }
+    else if(view.mode==="zoom") backToAll();
+    return;
+  }
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+});
+$("#back").onclick=backToAll;
+
+/* ===== 書き出し・読み込み ===== */
+/* 保存先フォルダーの記憶(ブラウザ内 IndexedDB。チャートの入力データとは別の入れ物) */
+const FSA=typeof window.showDirectoryPicker==="function";
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("mandala-form-settings",1); r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function kvGet(k){ const db=await idb(); return new Promise((res,rej)=>{ const q=db.transaction("kv").objectStore("kv").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+async function kvSet(k,v){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction("kv","readwrite"); t.objectStore("kv").put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
+let jsonDirName="";
+if(FSA && !RO) kvGet("jsonDir").then(h=>{ if(h&&h.name) jsonDirName=h.name; }).catch(()=>{});
+async function pickJsonDir(){
+  const h=await window.showDirectoryPicker({id:"mandala-json",mode:"readwrite",startIn:"documents"});
+  await kvSet("jsonDir",h); jsonDirName=h.name; return h;
+}
+async function ensureJsonDir(forcePick){
+  let h=null;
+  if(!forcePick){ try{ h=await kvGet("jsonDir"); }catch(e){ h=null; } }
+  if(h){
+    let perm="prompt";
+    try{ perm=await h.queryPermission({mode:"readwrite"}); if(perm!=="granted") perm=await h.requestPermission({mode:"readwrite"}); }catch(e){ perm="denied"; }
+    if(perm==="granted"){ jsonDirName=h.name; return h; }
+    // 許可されなかったときは、保存先を選び直す画面に戻す
+  }
+  return pickJsonDir();
+}
+async function uniqueFile(dir,name){
+  for(let n=0;n<200;n++){
+    const nm=withSeq(name,n);
+    try{ await dir.getFileHandle(nm); }catch(e){ if(e&&e.name==="NotFoundError") return nm; throw e; }
+  }
+  return withSeq(name,Date.now());
+}
+function downloadJSON(blob,name){ download(blob,name); }
+async function exportJSON(forcePick){
+  if(saveTimer) saveNow();
+  const name=outName("","json");
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  if(!FSA){ downloadJSON(blob,numName(name)); setStatus(T("✓ 書き出しました(このブラウザでは保存先を選べません。ダウンロードフォルダーに保存しました)")); return; }
+  try{
+    const dir=await ensureJsonDir(forcePick===true);
+    const nm=await uniqueFile(dir,name);
+    const fh=await dir.getFileHandle(nm,{create:true});
+    const w=await fh.createWritable(); await w.write(blob); await w.close();
+    setStatus(T("✓ 「{0}」フォルダーに保存しました: {1}",dir.name,nm));
+  }catch(e){
+    if(e&&e.name==="AbortError"){ setStatus(T("保存先の選択をキャンセルしました(書き出していません)")); return; }
+    console.error(e);
+    downloadJSON(blob,numName(name));
+    setStatus(T("⚠ フォルダーに保存できなかったため、ダウンロードフォルダーに保存しました({0})",(e&&e.message)||e),true);
+  }
+}
+async function changeJsonDir(){
+  if(!FSA) return;
+  try{ const h=await pickJsonDir(); setStatus(T("✓ JSONの保存先を「{0}」にしました",h.name)); }
+  catch(e){ if(e&&e.name==="AbortError") setStatus(T("保存先の選択をキャンセルしました(変更していません)")); else setStatus(T("⚠ 保存先を選べませんでした({0})",(e&&e.message)||e),true); }
+}
+function importJSON(){ $("#fileIn").click(); }
+$("#fileIn").onchange=ev=>{
+  const f=ev.target.files[0]; ev.target.value=""; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    let p; try{ p=JSON.parse(r.result); }catch(e){ alert(T("JSONとして読み込めませんでした。現在のデータは変更していません。")); return; }
+    if(!validImport(p)){ alert(T("チャートの形式が違います(8テーマ × 8項目が必要)。現在のデータは変更していません。")); return; }
+    if(!confirm(T("「{0}」を読み込みます。\n現在の内容は置き換わります(直前の状態は自動で控えを取ります)。よろしいですか?",p.title||T("無題")))) return;
+    lsSet(PREFIX+"prev:"+normalize(p).id, JSON.stringify(data));
+    lsSet(PREFIX+"prevOf", data.id);
+    closeBubble(true);
+    data=normalize(p); lsSet(CUR_KEY,data.id); saveNow(); refreshPicker(); view={mode:"all",theme:0}; render();
+    setStatus(T("✓ 読み込みました"));
+  };
+  r.readAsText(f);
+};
+function refreshPicker(){
+  const sel=$("#chartSel"), ids=new Set(defaults.map(d=>d.id)); ids.add(data.id);
+  sel.innerHTML=""; ids.forEach(id=>{
+    const o=document.createElement("option"); o.value=id;
+    const d=defaults.find(x=>x.id===id); o.textContent=id===data.id?data.title:(d?d.title:id); sel.appendChild(o);
+  });
+  sel.value=data.id; sel.style.display=ids.size>1?"":"none";
+}
+function hasPrev(){ return !!lsGet(PREFIX+"prev:"+(lsGet(PREFIX+"prevOf")||"")); }
+$("#chartSel").onchange=e=>{
+  if(saveTimer) saveNow(); closeBubble(true);
+  data=loadChart(e.target.value); lsSet(CUR_KEY,data.id); view={mode:"all",theme:0}; refreshPicker(); render();
+};
+function undoImport(){
+  const pid=lsGet(PREFIX+"prevOf"), raw=lsGet(PREFIX+"prev:"+pid); if(!raw) return;
+  if(!confirm(T("直前の状態(読み込み前・全部消す前)に戻します。現在の内容は置き換わります。よろしいですか?"))) return;
+  try{ const cur=JSON.stringify(data); data=normalize(JSON.parse(raw)); lsSet(PREFIX+"prev:"+data.id,cur);
+    lsSet(CUR_KEY,data.id); saveNow(); closeBubble(true); view={mode:"all",theme:0}; refreshPicker(); render(); setStatus(T("✓ 元に戻しました")); }catch(e){}
+}
+
+/* ===== 使い方 ===== */
+let helpOpen=false;
+const helpEl=$("#help");
+function miniCell(text,k,lv,off){
+  const c=document.createElement("div"); c.className="cell "+k+(lv?" lv"+lv:"")+(off?" off":""); c.textContent=T(text); return c;
+}
+function miniGrid(center,around,lvs,centerLv,centerKind,aroundKind,offs){
+  const g=document.createElement("div"); g.className="mini";
+  for(let p=0;p<9;p++){
+    if(p===4) g.appendChild(miniCell(center,centerKind,centerLv));
+    else { const k=idx(p); g.appendChild(miniCell(around[k],aroundKind,lvs[k],offs&&offs[k])); }
+  }
+  return g;
+}
+/* --- 動くデモ(文章の説明のすぐ下に置く。繰り返し再生) --- */
+const DEMO_ITEMS=["週2回の英会話","毎朝5分の独り言","動画のまね","表現を20個","録音して聞く","週1回の添削","間違いノート","月1回の録画"];
+const DEMO_THEMES=["毎日の学習","リスニング","スピーキング","単語","文法","体調管理","お金","旅の計画"];
+const demos=[];
+function dEl(tag,cls,text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+function dcell(text,o){
+  o=o||{};
+  const c=dEl("div","cell "+(o.k||"")+(o.lv?" lv"+o.lv:"")+(o.off?" off":"")+(o.memo?" memo":"")+(o.hl?" hl":"")+(o.fx?" "+o.fx:""),T(text));
+  if(o.rb) c.appendChild(dEl("span","rbtn"+(o.hlb?" hl":""),T("評価")));
+  return c;
+}
+function dgrid(centerText,centerOpt,texts,itemOpt){
+  const g=dEl("div","mini");
+  for(let p=0;p<9;p++){ if(p===4) g.appendChild(dcell(centerText,centerOpt)); else { const k=idx(p); g.appendChild(dcell(texts[k],itemOpt(k))); } }
+  return g;
+}
+function lvFromLevels(levels){   // undefined=使わない / 0=未評価 / 1〜5
+  const u=levels.filter(v=>v!==undefined); if(!u.length||u.every(v=>!v)) return 0;
+  return themeLvOfPct(u.reduce((a,v)=>a+v,0)*20/u.length);
+}
+function popMock(sel){
+  const d=dEl("div","dpop"); d.appendChild(dEl("b",null,T("進行状況評価")));
+  [5,4,3,2,1].forEach(lv=>{ const r=dEl("div","r"+(lv===sel?" cur":"")); const i=dEl("i"); i.style.background=LCOL[lv]; r.append(i,document.createTextNode(T(LNAME[lv]))); d.appendChild(r); });
+  return d;
+}
+function wrap(...kids){ const w=dEl("div"); w.style.position="relative"; kids.forEach(k=>k&&w.appendChild(k)); return w; }
+function dbub(kind){
+  const d=dEl("div","dbub"), h=t=>dEl("div","h",T(t)), l=t=>dEl("div","l",T(t)), p=t=>dEl("div",null,T(t));
+  if(kind==="goal") d.append(h("ここに、いちばんの目標の名前を書きます"),l("1年後に英語で旅行できるようになる"),h("ここに、ゴールへの願いや思いを自由に書けます"),p("英語で、旅先の人と話せるようになりたい"));
+  else if(kind==="theme") d.append(h("ここに、この目標の名前を書きます"),l("スピーキング"));
+  else d.append(h("ここに、この項目のタイトルを書きます"),l("週2回の英会話"),h("やることを細かく分けたメモを書きます"),p("・火・金の夜に25分"),p("・休んだ週は日曜に振り替える"));
+  return d;
+}
+const DEMOF={
+  write(){
+    const TH=DEMO_THEMES, I=DEMO_ITEMS;
+    const goal=hl=>dgrid("1年後に英語で旅行できるようになる",{k:"center",hl},TH,k=>({k:"theme"}));
+    const zoom=(hlc,hli)=>dgrid("スピーキング",{k:"theme",hl:hlc},I,k=>({rb:true,hl:hli&&k===0}));
+    return [
+      {cap:T("① 真ん中のゴールをクリックします。"),draw:()=>wrap(goal(true))},
+      {cap:T("② 吹き出しが開きます。上にゴールの名前、その下に願いや思いを自由に書けます。内容は自動で保存されます。"),draw:()=>wrap(goal(false),dbub("goal")),ms:4800},
+      {cap:T("③ 周りの目標(テーマ)は、9マスの画面で真ん中のマスをクリックします。"),draw:()=>wrap(zoom(true,false))},
+      {cap:T("④ 目標の名前だけを書き換えられます。"),draw:()=>wrap(zoom(false,false),dbub("theme")),ms:3000},
+      {cap:T("⑤ 項目は、9マスの画面で項目をクリックします。"),draw:()=>wrap(zoom(false,true))},
+      {cap:T("⑥ 一番上の枠が項目のタイトル、その下がメモです。メモは評価には入りません。次にクリックすると、このメモが吹き出しで見られます。"),draw:()=>wrap(zoom(false,false),dbub("item")),ms:5600}
+    ];
+  },
+  rate(){
+    const g=(lvs,hl,pop)=>()=>wrap(dgrid("スピーキング",{k:"theme",lv:lvFromLevels(lvs)},DEMO_ITEMS,k=>({lv:lvs[k],rb:true,hlb:hl===k})),pop?popMock(pop):null);
+    const z=[0,0,0,0,0,0,0,0];
+    return [
+      {cap:T("① 項目の右下の「評価」ボタンを押します。いまは未評価で、グレーです。"),draw:g(z,0)},
+      {cap:T("② 評価の吹き出しが開くので、進み具合に近い色を1つ選びます。"),draw:g(z,0,4)},
+      {cap:T("③ 項目が選んだ色になります。評価していない項目は0として数えるので、真ん中の目標はまだ赤です。"),draw:g([4,0,0,0,0,0,0,0],-1)},
+      {cap:T("④ ほかの項目も評価すると、真ん中の目標の色が、平均で水色まで進みます。"),draw:g([4,5,3,5,4,3,5,4],-1),ms:3200}
+    ];
+  },
+  memo(){
+    const z=[0,0,0,0,0,0,0,0];
+    const g=(memo,hl,bub)=>()=>wrap(dgrid("スピーキング",{k:"theme"},DEMO_ITEMS,k=>({rb:true,hl:hl&&k===0,memo:memo&&k===0})),bub?bubMock():null);
+    const bubMock=()=>dbub("item");
+    return [
+      {cap:T("① 項目をクリックします。"),draw:g(false,true,false)},
+      {cap:T("② 吹き出しが開くので、メモ欄に、やることを細かく分けた内容を書きます。評価には数えません。"),draw:g(false,false,true),ms:3600},
+      {cap:T("③ メモを書いた項目には、左下に小さな灰色の点が付きます。"),draw:g(true,false,false)}
+    ];
+  },
+  off(){
+    const lvs=[4,5,3,0,4,3,5,0];
+    const g=(btn,hlb,hlcell,off)=>()=>{
+      const w=dEl("div"); const b=dEl("span","dofb"+(btn?" on":"")+(hlb?" hl":""),T("マスを使わない設定")); w.appendChild(b);
+      const L=lvs.map((v,i)=>off&&i===3?undefined:v);
+      w.appendChild(dgrid("スピーキング",{k:"theme",lv:lvFromLevels(L)},DEMO_ITEMS,k=>({lv:lvs[k],off:off&&k===3,hl:hlcell&&k===3})));
+      return w;
+    };
+    return [
+      {cap:T("① 9マスの画面の上にある「マスを使わない設定」を押します。"),draw:g(false,true,false,false)},
+      {cap:T("② 使わないマスをクリックすると、暗くなって×が付きます。"),draw:g(true,false,true,false)},
+      {cap:T("③ ×のマスは平均から外れるので、真ん中の目標の色が変わります(赤い→水色)。書いた文字は消えません。もう一度ボタンを押すと設定が終わります。"),draw:g(false,false,false,true),ms:3800}
+    ];
+  },
+  goal(){
+    const g=(levels,fx)=>()=>dgrid("いちばんの目標",{k:"center",fx:fx||""},DEMO_THEMES,k=>({k:"theme",lv:levels[k]}));
+    return [
+      {cap:T("① はじめは、周りの目標がすべてグレー(未評価)で、ゴールは金色です。"),draw:g([0,0,0,0,0,0,0,0])},
+      {cap:T("② 項目を評価していくと、目標が赤・ピンク・黄・水色と変わっていきます。ゴールは金色のままです。"),draw:g([1,2,2,3,1,0,2,3])},
+      {cap:T("③ 目標が新しく青になったとき、ゴールが1回だけキラーンと光ります。"),draw:g([5,3,4,2,4,3,4,2],"flash"),ms:3000},
+      {cap:T("④ 8つの目標の平均が76〜99%の間は、ゴールがずっとゆっくり輝き続けます。もう少しだよ、のサインです。"),draw:g([5,5,4,5,4,5,4,5],"shine"),ms:4200},
+      {cap:T("⑤ すべての目標が青(100%)になると、ゴールが虹色にふわっと変わって、くるくる回ります。"),draw:g([5,5,5,5,5,5,5,5],"rainbow rbnew"),ms:4200}
+    ];
+  }
+};
+function makeDemo(frames){
+  const box=dEl("div","demo"), cap=dEl("div","dcap"), stage=dEl("div","dstage"), bar=dEl("div","dbar");
+  const bp=dEl("button",null,T("⏸ 止める")), br=dEl("button",null,T("⏮ 最初から"));
+  bar.append(bp,br); box.append(cap,stage,bar);
+  let i=0, timer=null;
+  function step(){ const f=frames[i]; cap.textContent=f.cap; stage.innerHTML=""; stage.appendChild(f.draw()); i=(i+1)%frames.length; timer=setTimeout(step,f.ms||2800); }
+  const d={box,
+    start(){ clearTimeout(timer); timer=null; bp.textContent=T("⏸ 止める"); i=0; step(); },
+    stop(){ clearTimeout(timer); timer=null; }};
+  bp.onclick=()=>{ if(timer){ d.stop(); bp.textContent=T("▶ 再生"); } else { bp.textContent=T("⏸ 止める"); step(); } };
+  br.onclick=()=>d.start();
+  demos.push(d); return d;
+}
+function buildHelp(){
+  const box=$("#helpFigs"); if(box.firstChild) return;
+  const themes=["毎日の学習","リスニング","スピーキング","単語","文法","体調管理","お金","旅の計画"];
+  const tl=[5,4,3,5,2,3,0,1];
+  const acts=DEMO_ITEMS;
+  const al=[3,5,3,0,3,3,5,0];
+  const mk=(cap,grid)=>{ const f=document.createElement("div"); f.className="fig"; const c=document.createElement("div"); c.className="cap"; c.textContent=cap; f.append(c,grid); return f; };
+  const arrow=document.createElement("div"); arrow.className="arrow"; arrow.textContent="→";
+  const grid81=mode=>{
+    const g=document.createElement("div"), bright=mode==="goal"?4:2; g.className="g81";
+    for(let b=0;b<9;b++){
+      const ti=b===4?-1:idx(b);
+      const m=b===4 ? miniGrid("1年後に英語で旅行できるようになる",themes,tl,0,"center","theme")
+                    : miniGrid(themes[ti],acts,al,ti===2?lvFromLevels(al):tl[ti],"theme","");
+      if(b!==bright) m.classList.add("dim"); else m.classList.add("bri");
+      if(mode==="goal" && b===4) m.children[2].dataset.anchor="src";
+      if(mode==="speak" && b===2) m.dataset.anchor="dst";
+      g.appendChild(m);
+    }
+    return g;
+  };
+  box.append(
+    mk(T("真ん中のブロック: 一番の目標(金色)と、周りの8つのテーマ"),grid81("goal")),
+    mk(T("周りのブロックのひとつ: 「スピーキング」が真ん中に入り、周りに具体的な項目"),grid81("speak"))
+  );
+  const NS="http://www.w3.org/2000/svg", sv=document.createElementNS(NS,"svg"); sv.setAttribute("class","farrow");
+  const pa=document.createElementNS(NS,"path"); pa.setAttribute("pathLength","1"); const hd=document.createElementNS(NS,"polygon");
+  sv.append(pa,hd); box.appendChild(sv);
+  const chip=(box,c,t)=>{ const e=document.createElement("span"); e.className="chip"; const i=document.createElement("i"); i.style.background=c; e.append(i,T(t)); box.appendChild(e); };
+  const ci=$("#chipsItem"), ct=$("#chipsTheme");
+  chip(ci,"#3b414c","未評価(グレー)"); for(let lv=1;lv<=5;lv++) chip(ci,LCOL[lv],T("項目: {0}",T(LNAME[lv])));
+  chip(ct,"#3b414c","未評価(グレー)");
+  ["目標 1〜25%","26〜50%","51〜75%","76〜99%","100%(全部が青のときだけ)"].forEach((t,i)=>chip(ct,LCOL[i+1],t));
+  document.querySelectorAll("#help .demoslot").forEach(s=>{ s.appendChild(makeDemo(DEMOF[s.dataset.demo]()).box); });
+}
+function placeFigArrow(){
+  const box=$("#helpFigs"), sv=box.querySelector("svg.farrow"); if(!sv) return;
+  const a=box.querySelector('[data-anchor="src"]'), d=box.querySelector('[data-anchor="dst"]'); if(!a||!d) return;
+  const R=box.getBoundingClientRect(), ra=a.getBoundingClientRect(), rd=d.getBoundingClientRect(); if(!R.width) return;
+  const x1=ra.left+ra.width/2-R.left, y1=ra.top-R.top, x2=rd.left+rd.width/2-R.left, y2=rd.top-R.top, top=Math.min(y1,y2)-30;
+  sv.setAttribute("width",R.width); sv.setAttribute("height",R.height);
+  sv.querySelector("path").setAttribute("d","M"+x1+","+y1+" C"+x1+","+top+" "+x2+","+top+" "+x2+","+(y2-12));
+  sv.querySelector("polygon").setAttribute("points",(x2-8)+","+(y2-14)+" "+(x2+8)+","+(y2-14)+" "+x2+","+(y2-1));
+}
+window.addEventListener("resize",placeFigArrow);
+function openHelp(){ closeBubble(true); closeMenu(); closeRate(); buildHelp(); helpEl.classList.add("open"); helpOpen=true; placeFigArrow(); requestAnimationFrame(placeFigArrow); demos.forEach(d=>d.start()); }
+function closeHelp(){ helpEl.classList.remove("open"); helpOpen=false; demos.forEach(d=>d.stop()); }
+$("#btnHelp").onclick=openHelp; $("#hClose").onclick=closeHelp;
+helpEl.addEventListener("pointerdown",e=>{ if(e.target===helpEl) closeHelp(); });
+function buildLegend(){
+  const l=$("#legend"); l.innerHTML="";
+  LEGEND.forEach(([c,t])=>{ const e=document.createElement("span"); const i=document.createElement("i"); i.style.background=c; e.append(i,T(t)); l.appendChild(e); });
+}
+
+/* ===== マスを空にする / 元に戻す ===== */
+let undoSnap=null, toastTimer=null;
+function showToast(msg){ $("#toastMsg").textContent=msg; $("#toast").classList.add("open"); clearTimeout(toastTimer); toastTimer=setTimeout(dropUndo,20000); }
+function dropUndo(){ undoSnap=null; clearTimeout(toastTimer); $("#toast").classList.remove("open"); }
+function clearCell(){
+  if(RO || !openRef) return;
+  const p=openRef.split(":");
+  let msg=T("このマスの文章と詳細を空にします。よろしいですか?");
+  if(p[0]==="t") msg+="\n\n"+T("※テーマを空にすると、81マス全体の中央にコピーされているテーマ名も空になります。");
+  if(p[0]==="c") msg+="\n\n"+T("※中央の目標が空になります。");
+  if(!confirm(msg)) return;
+  undoSnap=JSON.stringify(data);
+  const n=node(openRef); n.label=""; n.detail="";
+  bLabel.value=""; bDetail.value="";
+  if(p[0]==="i"){ data.themes[+p[1]].items[+p[2]].rate=0; rowsState=[{text:""}]; buildRows(); }
+  saveNow(); view.noAnim=true; render(); updateInfo();
+  showToast(T("このマスを空にしました"));
+}
+function undoClear(){
+  if(!undoSnap) return;
+  const snap=undoSnap; dropUndo();
+  data=normalize(JSON.parse(snap)); saveNow(); closeBubble(true); view.noAnim=true; refreshPicker(); render();
+  setStatus(T("✓ 元に戻しました"));
+}
+$("#bClear").onclick=clearCell;
+$("#toastUndo").onclick=undoClear;
+
+/* ===== チャートを全部消す(新しいチャートを始める) ===== */
+let clearOpen=false;
+const clearEl=$("#clearDlg");
+function openClear(){ closeBubble(true); closeMenu(); clearEl.classList.add("open"); clearOpen=true; }
+function closeClear(){ clearEl.classList.remove("open"); clearOpen=false; }
+function clearAll(keepCenter){
+  if(RO) return;
+  if(saveTimer) saveNow();
+  lsSet(PREFIX+"prev:"+data.id, JSON.stringify(data));   // 消す直前の控え(「取り込み前・消す前に戻す」で戻せる)
+  lsSet(PREFIX+"prevOf", data.id);
+  const d=normalize({id:data.id, title:keepCenter?data.title:"", detail:keepCenter?data.detail:"", themes:[]});
+  d.name=""; d.deadline="";
+  dropUndo(); data=d; saveNow(); closeClear(); closeBubble(true);
+  view={mode:"all",theme:0}; refreshPicker(); render();
+  setStatus(T("✓ 空にしました(消す前の状態はバックアップメニューから戻せます)"));
+}
+$("#cdCancel").onclick=closeClear;
+$("#cdExport").onclick=()=>exportJSON();
+$("#cdAll").onclick=()=>clearAll(false);
+$("#cdKeep").onclick=()=>clearAll(true);
+clearEl.addEventListener("pointerdown",e=>{ if(e.target===clearEl) closeClear(); });
+
+/* ===== メニュー ===== */
+let menuOpen=null, menuClosedAt=0, menuBtnClosed=null;
+const menuEl=$("#menu");
+function closeMenu(){ if(!menuOpen) return; menuOpen=null; menuEl.classList.remove("open"); }
+function showMenu(btn,items){
+  if(menuOpen===btn){ closeMenu(); return; }
+  if(menuBtnClosed===btn && Date.now()-menuClosedAt<300) return;
+  closeBubble();
+  menuEl.innerHTML="";
+  items.forEach(it=>{
+    if(it.sep){ const h=document.createElement("div"); h.className="msep"; menuEl.appendChild(h); return; }
+    if(it.heading){ const h=document.createElement("div"); h.className="mh"; h.textContent=it.heading; menuEl.appendChild(h); return; }
+    const b=document.createElement("button"); b.className="mi"+(it.quiet?" quiet":""); b.textContent=it.label; b.disabled=!!it.disabled;
+    b.onclick=()=>{ closeMenu(); it.run(); }; menuEl.appendChild(b);
+  });
+  menuEl.classList.add("open");
+  const r=btn.getBoundingClientRect();
+  menuEl.style.top=(r.bottom+6)+"px";
+  menuEl.style.left=Math.max(8,Math.min(r.right-menuEl.offsetWidth,innerWidth-menuEl.offsetWidth-8))+"px";
+  menuOpen=btn;
+}
+document.addEventListener("pointerdown",e=>{
+  if(menuOpen && !menuEl.contains(e.target)){ const was=menuOpen; closeMenu(); if(was.contains(e.target)){ menuBtnClosed=was; menuClosedAt=Date.now(); } } // 自分のボタンを押して閉じた時だけ「開き直さない」
+},true);
+$("#btnBackup").onclick=function(){
+  showMenu(this,[
+    {label:T("書き出し(JSON)"),run:()=>exportJSON()},
+    {label:T("読み込み(JSON)"),run:importJSON},
+    {sep:true},
+    {heading:FSA?(jsonDirName?T("JSONの保存先: 「{0}」",jsonDirName):T("JSONの保存先: 未設定(書き出すとき選びます)")):T("JSONの保存先: ダウンロード(このブラウザでは選べません)")},
+    {label:T("保存先フォルダーを選び直す"),run:changeJsonDir,disabled:!FSA},
+    {sep:true},
+    {label:T("取り込み前・消す前に戻す"),run:undoImport,disabled:!hasPrev()},
+    {sep:true},
+    {label:T("新しいチャートを始める(全部消す)"),run:openClear,quiet:true}
+  ]);
+};
+$("#btnExportMenu").onclick=function(){
+  const zoomed=view.mode==="zoom";
+  const lbl=f=>T("いま開いているテーマ(3×3) {0}",f)+(zoomed?"":T(" ※テーマを開くと選べます"));
+  showMenu(this,[
+    {heading:T("持ち歩き用(入力できない閲覧専用)")},
+    {label:T("見る専用ファイル(HTML)"),run:exportViewer},
+    {heading:T("画像(JPEG)")},
+    {label:T("全体(9×9) {0}","JPEG"),run:()=>exportImg("jpg","all")},
+    {label:lbl("JPEG"),disabled:!zoomed,run:()=>exportImg("jpg","theme")},
+    {sep:true},
+    {heading:"PDF"},
+    {label:T("全体(9×9) {0}","PDF"),run:()=>exportImg("pdf","all")},
+    {label:lbl("PDF"),disabled:!zoomed,run:()=>exportImg("pdf","theme")},
+    {label:T("使うテーマの3×3を一括(1テーマ1ページ) PDF"),run:()=>exportImg("pdf","themes")}
+  ]);
+};
+
+/* ===== 書き出し共通 ===== */
+const pad2=n=>String(n).padStart(2,"0");
+function dstamp(){ const d=new Date(); return (d.getMonth()+1)+"."+d.getDate()+"."+pad2(d.getFullYear()%100); }   // 月.日.年(下2桁)。月と日はゼロなし
+function ymd(){ const d=new Date(); return d.getFullYear()+pad2(d.getMonth()+1)+pad2(d.getDate()); }
+function ymdDash(){ const d=new Date(); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+function oneLine(s){ return String(s).replace(/\s*\n+\s*/g," ").trim(); }
+function fname(s,mx){ return oneLine(s).replace(/[\\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,mx||40)||T("マンダラチャート"); }
+function download(blob,name){
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+function chartBase(){ return fname(data.title); }
+function outName(kind,ext){ return dstamp()+" "+chartBase()+(kind?" "+kind:"")+"."+ext; }
+/* 同じ日に同じ名前を書き出すと、日付のすぐあとに (1)(2)… を付ける(上書きしない) */
+function withSeq(name,n){ return n>0 ? name.replace(/^(\d+\.\d+\.\d+)/,"$1("+n+")") : name; }
+function numName(name){ const k=PREFIX+"seq:"+name; const n=+(lsGet(k)||0); lsSet(k,String(n+1)); return withSeq(name,n); }   // 例: 11.11.26 横井和愛という人生_全体.jpg
+
+/* 見る専用HTML(今のアプリ+書き出し時点のデータを1ファイルに) */
+function exportViewer(){
+  try{
+    if(saveTimer) saveNow();
+    const json=JSON.stringify(data).replace(/</g,"\\u003c");
+    const inline="<script>window.MANDALA_READONLY=true;window.MANDALA_LANG="+JSON.stringify(LANG)+";window.MANDALA_EXPORTED_AT="+JSON.stringify(ymdDash())+";window.MANDALA_CHARTS=["+json+"];<\/script>";
+    let first=true;
+    const html=PRISTINE.replace(/<script src="data\/[^"]*"><\/script>/g,()=>{ if(first){first=false;return inline;} return ""; });
+    if(first) throw new Error("data script not found");
+    download(new Blob([html],{type:"text/html"}), numName(outName("","html")));
+    setStatus(T("✓ 見る専用ファイルを書き出しました"));
+  }catch(e){ console.error(e); setStatus(T("⚠ 書き出しに失敗しました"),true); }
+}
+
+/* ===== 画像(canvas)描画 ===== */
+const FONT='"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
+const COL={bg:"#14171c",gap:"#0c0e11",cell:"#3b414c",theme:"#22262d",center:"#dcb85e",txt:"#e8eaee",themeTxt:"#eef2ff",sub:"#8e96a3",no:"#9db0e0"};
+function wrapLines(ctx,text,maxW){
+  const out=[];
+  for(const para of String(text).split("\n")){
+    if(para===""){ out.push(""); continue; }
+    let line="";
+    for(const ch of para){ const t=line+ch; if(ctx.measureText(t).width>maxW && line){ out.push(line); line=ch; } else line=t; }
+    out.push(line);
+  }
+  return out;
+}
+function mixHex(a,b,t){
+  const pa=[1,3,5].map(i=>parseInt(a.substr(i,2),16)), pb=[1,3,5].map(i=>parseInt(b.substr(i,2),16));
+  return "#"+pa.map((v,i)=>Math.round(v*(1-t)+pb[i]*t).toString(16).padStart(2,"0")).join("");
+}
+function drawX(ctx,x,y,w,h,scale,alpha){
+  const q=Math.min(w,h)*scale/2, cx=x+w/2, cy=y+h/2;
+  ctx.save(); ctx.strokeStyle="rgba(165,173,188,"+alpha+")"; ctx.lineWidth=Math.max(4,Math.min(w,h)*.04); ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(cx-q,cy-q); ctx.lineTo(cx+q,cy+q); ctx.moveTo(cx+q,cy-q); ctx.lineTo(cx-q,cy+q); ctx.stroke(); ctx.restore();
+}
+function drawCell(ctx,c,x,y,w,h,o){
+  if(c.off){   // 使わないマス: 電気が消えたように暗く、文字は残す。off==="x" はバツ付き、"dim" は暗いだけ(ブロック全体のバツは別に描く)
+    ctx.fillStyle="#0d0f12"; ctx.fillRect(x,y,w,h);
+    const pad2=Math.round(w*.07); let sz=o.size, ls;
+    for(;;){ ctx.font="400 "+sz+"px "+FONT; ls=wrapLines(ctx,c.t,w-pad2*2); if(ls.length*sz*1.35<=h-pad2*2||sz<=o.min) break; sz-=2; }
+    ctx.fillStyle="#363b45"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    const lh2=sz*1.35, tp=y+h/2-(ls.length*lh2)/2+lh2/2; ls.forEach((l,i)=>ctx.fillText(l,x+w/2,tp+i*lh2));
+    if(c.off==="x") drawX(ctx,x,y,w,h,.42,.5);
+    return;
+  }
+  const lv=c.lv||0;
+  if(c.k==="center" && c.rainbow){
+    const g=ctx.createLinearGradient(x,y,x+w,y+h);
+    ["#ff9aa2","#ffd79a","#fff3a0","#a8e6a1","#9ad7ff","#c6a8ff"].forEach((col,i,a)=>g.addColorStop(i/(a.length-1),col));
+    ctx.fillStyle=g;
+  } else ctx.fillStyle = c.k==="center"?COL.center : lv?LCOL[lv] : c.k==="theme"?COL.theme : COL.cell;
+  ctx.fillRect(x,y,w,h);
+  const light = lv>0 || c.k==="center";
+  const bold=c.k!=="cell", pad=Math.round(w*.07), room=h-pad*2;
+  let size=c.k==="center"?o.center:o.size, lines;
+  for(;;){
+    ctx.font=(bold?"700 ":"400 ")+size+"px "+FONT;
+    lines=wrapLines(ctx,c.t,w-pad*2);
+    if(lines.length*size*1.35<=room || size<=o.min) break;
+    size-=2;
+  }
+  ctx.fillStyle = light?"#2b2f38" : c.k==="theme"?COL.themeTxt:COL.txt;
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  const lh=size*1.35, top=y+h/2-(lines.length*lh)/2+lh/2;
+  lines.forEach((l,i)=>ctx.fillText(l,x+w/2,top+i*lh));
+  if(c.no){ ctx.font="400 "+o.num+"px "+FONT; ctx.fillStyle=light?"#4a5160":COL.no; ctx.textAlign="left"; ctx.textBaseline="top"; ctx.fillText(String(c.no),x+10,y+8); }
+}
+function drawLegend(ctx,W,H,fs){
+  ctx.font="400 "+fs+"px "+FONT; ctx.textBaseline="alphabetic";
+  const sq=fs*.8, gap=fs*1.1;
+  const total=LEGEND.reduce((a,[c,t])=>a+sq+8+ctx.measureText(T(t)).width+gap,0)-gap;
+  let x=W-60-total; const y=H-fs*.7;
+  LEGEND.forEach(([c,t])=>{ ctx.fillStyle=c; ctx.fillRect(x,y-sq,sq,sq); x+=sq+8; ctx.fillStyle=COL.sub; ctx.textAlign="left"; ctx.fillText(T(t),x,y); x+=ctx.measureText(T(t)).width+gap; });
+}
+function newCanvas(w,h){ const c=document.createElement("canvas"); c.width=w; c.height=h; const x=c.getContext("2d"); x.fillStyle=COL.bg; x.fillRect(0,0,w,h); return [c,x]; }
+function drawHead(ctx,w,left,right){
+  ctx.textBaseline="alphabetic"; ctx.textAlign="left"; ctx.fillStyle=COL.txt; ctx.font="700 54px "+FONT; ctx.fillText(left,60,100);
+  ctx.textAlign="right"; ctx.fillStyle=COL.sub; ctx.font="400 32px "+FONT; ctx.fillText(right,w-60,100);
+}
+function blockCells(b){
+  const out=[];
+  for(let p=0;p<9;p++){
+    if(b===4){ if(p===4) out.push({t:data.title,k:"center",rainbow:goalDone()}); else { const ti=idx(p); out.push({t:data.themes[ti].label,k:"theme",lv:themeLv(ti),off:data.themes[ti].off?"x":0}); } }
+    else {
+      const ti=idx(b), T=data.themes[ti];
+      if(T.off){ out.push({t:p===4?T.label:T.items[idx(p)].text,k:"cell",off:"dim"}); continue; }
+      out.push(p===4?{t:T.label,k:"theme",lv:themeLv(ti)}:{t:T.items[idx(p)].text,k:"cell",lv:itemLv(ti,idx(p)),off:T.items[idx(p)].off?"x":0});
+    }
+  }
+  return out;
+}
+function metaText(){ return (data.deadline?T("期限")+" "+data.deadline+"   ":"")+ymdDash(); }
+function drawAll(){
+  const W=3000,H=2118,[cv,ctx]=newCanvas(W,H);
+  drawHead(ctx,W,data.name||T("マンダラチャート"),metaText());
+  const BW=940,BH=616,G=30,cw=(BW-16)/3,ch=200;
+  for(let b=0;b<9;b++){
+    const bx=60+(b%3)*(BW+G), by=150+Math.floor(b/3)*(BH+G);
+    ctx.fillStyle=COL.gap; ctx.fillRect(bx,by,BW,BH);
+    blockCells(b).forEach((c,p)=>drawCell(ctx,c,bx+4+(p%3)*(cw+4),by+4+Math.floor(p/3)*(ch+4),cw,ch,{size:40,center:48,min:18,num:24,ring:5,pct:24}));
+    if(b!==4 && data.themes[idx(b)].off) drawX(ctx,bx,by,BW,BH,.55,.45);
+  }
+  drawLegend(ctx,W,H,26);
+  return cv;
+}
+function drawTheme(ti){
+  const W=2000,H=1798,[cv,ctx]=newCanvas(W,H), T=data.themes[ti];
+  drawHead(ctx,W,oneLine(T.label),(data.name||"")+"   "+ymdDash());
+  const cw=617,ch=520,G=14;
+  for(let p=0;p<9;p++){
+    const it=T.items[idx(p)], c=p===4?{t:T.label,k:"theme",lv:themeLv(ti)}:{t:it.text,k:"cell",lv:itemLv(ti,idx(p)),off:it.off?"x":0};
+    drawCell(ctx,c,60+(p%3)*(cw+G),150+Math.floor(p/3)*(ch+G),cw,ch,{size:72,center:80,min:30,num:26,ring:9,pct:38});
+  }
+  drawLegend(ctx,W,H,28);
+  return cv;
+}
+
+/* ===== ZIP(無圧縮) / PDF(JPEG貼り付け) ===== */
+const CRCT=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=CRCT[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function makeZip(files){
+  const enc=new TextEncoder(), parts=[], cen=[]; let off=0;
+  const u16=n=>[n&255,(n>>8)&255], u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255];
+  for(const f of files){
+    const nm=enc.encode(f.name), crc=crc32(f.bytes), sz=f.bytes.length;
+    const lh=new Uint8Array([0x50,0x4b,3,4,...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(sz),...u32(sz),...u16(nm.length),...u16(0)]);
+    parts.push(lh,nm,f.bytes); cen.push({nm,crc,sz,off}); off+=lh.length+nm.length+sz;
+  }
+  let cd=0;
+  for(const c of cen){
+    const ch=new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(c.crc),...u32(c.sz),...u32(c.sz),...u16(c.nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(c.off)]);
+    parts.push(ch,c.nm); cd+=ch.length+c.nm.length;
+  }
+  parts.push(new Uint8Array([0x50,0x4b,5,6,...u16(0),...u16(0),...u16(cen.length),...u16(cen.length),...u32(cd),...u32(off),...u16(0)]));
+  return new Blob(parts,{type:"application/zip"});
+}
+function makePdf(pages){
+  const te=new TextEncoder(), chunks=[], offs=[]; let len=0;
+  const push=x=>{ const b=typeof x==="string"?te.encode(x):x; chunks.push(b); len+=b.length; };
+  const obj=(n,fn)=>{ offs[n]=len; push(n+" 0 obj\n"); fn(); push("\nendobj\n"); };
+  const PW=841.89, PH=595.28, M=18, n=pages.length;
+  push("%PDF-1.4\n");
+  obj(1,()=>push("<</Type/Catalog/Pages 2 0 R>>"));
+  obj(2,()=>push("<</Type/Pages/Count "+n+"/Kids["+pages.map((_,i)=>(3+3*i)+" 0 R").join(" ")+"]>>"));
+  pages.forEach((p,i)=>{
+    const sc=Math.min((PW-2*M)/p.w,(PH-2*M)/p.h), w=p.w*sc, h=p.h*sc, x=(PW-w)/2, y=(PH-h)/2;
+    const ct="0.078 0.09 0.11 rg 0 0 "+PW+" "+PH+" re f q "+w.toFixed(2)+" 0 0 "+h.toFixed(2)+" "+x.toFixed(2)+" "+y.toFixed(2)+" cm /Im0 Do Q";
+    obj(3+3*i,()=>push("<</Type/Page/Parent 2 0 R/MediaBox[0 0 "+PW+" "+PH+"]/Contents "+(4+3*i)+" 0 R/Resources<</XObject<</Im0 "+(5+3*i)+" 0 R>>>>>>"));
+    obj(4+3*i,()=>push("<</Length "+ct.length+">>\nstream\n"+ct+"\nendstream"));
+    obj(5+3*i,()=>{ push("<</Type/XObject/Subtype/Image/Width "+p.w+"/Height "+p.h+"/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length "+p.bytes.length+">>\nstream\n"); push(p.bytes); push("\nendstream"); });
+  });
+  const total=3+3*n, xref=len;
+  push("xref\n0 "+total+"\n0000000000 65535 f \n");
+  for(let k=1;k<total;k++) push(String(offs[k]).padStart(10,"0")+" 00000 n \n");
+  push("trailer\n<</Size "+total+"/Root 1 0 R>>\nstartxref\n"+xref+"\n%%EOF");
+  return new Blob(chunks,{type:"application/pdf"});
+}
+async function exportImg(fmt,scope){
+  try{
+    if(saveTimer) saveNow();
+    setStatus(T("書き出し中…"));
+    await new Promise(r=>setTimeout(r,30));
+    const base=chartBase(), pre=dstamp()+" ", ti=view.theme;
+    const tn=i=>pre+base+" "+fname(data.themes[i].label,24);
+    let jobs;
+    if(scope==="all") jobs=[{n:pre+base+" "+T("全体"),c:drawAll}];
+    else if(scope==="theme") jobs=[{n:tn(ti),c:()=>drawTheme(ti)}];
+    else { jobs=data.themes.map((t,i)=>({n:tn(i),c:()=>drawTheme(i),off:t.off})).filter(j=>!j.off); if(!jobs.length){ setStatus(T("使うテーマがありません"),true); return; } }
+    const outs=[];
+    for(const j of jobs){
+      const cv=j.c(), blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",.93));
+      outs.push({name:j.n,w:cv.width,h:cv.height,bytes:new Uint8Array(await blob.arrayBuffer())});
+    }
+    if(fmt==="jpg"){
+      if(outs.length===1) download(new Blob([outs[0].bytes],{type:"image/jpeg"}),numName(outs[0].name+".jpg"));
+      else download(makeZip(outs.map(o=>({name:o.name+".jpg",bytes:o.bytes}))),numName(pre+base+" "+T("全テーマ")+".zip"));
+    } else {
+      const nm=scope==="themes"?pre+base+" "+T("全テーマ"):outs[0].name;
+      download(makePdf(outs),numName(nm+".pdf"));
+    }
+    setStatus(T("✓ 書き出しました"));
+  }catch(e){ console.error(e); setStatus(T("⚠ 書き出しに失敗しました"),true); }
+}
+
+/* --- 言語の切り替え: 画面の固定文言をまとめて入れ替える(書いた内容は触らない) --- */
+const SKIP="#crumb,#status,#chartSel,#bRows,#bHintL,#bHintD,#toastMsg,#useMsg,#help .demoslot,#helpFigs,#chipsItem,#chipsTheme,#celebrate";
+const origTxt=new WeakMap();
+function walkLang(root){
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  const nodes=[]; for(let n=w.nextNode();n;n=w.nextNode()) nodes.push(n);
+  nodes.forEach(n=>{
+    const el=n.parentElement; if(!el || el.closest(SKIP) || el.tagName==="SCRIPT" || el.tagName==="STYLE") return;
+    let o=origTxt.get(n); if(o===undefined){ o=n.nodeValue; origTxt.set(n,o); }
+    const k=o.trim(); if(!k) return;
+    const tr=(LANG==="en")?TR[k]:undefined;
+    n.nodeValue = tr!==undefined ? o.replace(k,()=>tr) : o;
+  });
+  root.querySelectorAll("[title],[placeholder],[aria-label]").forEach(el=>{
+    if(el.closest(SKIP)) return;
+    ["title","placeholder","aria-label"].forEach(a=>{
+      if(!el.hasAttribute(a) && el.dataset["o"+a.replace("-","")]===undefined) return;
+      const key="o"+a.replace("-",""); if(el.dataset[key]===undefined) el.dataset[key]=el.getAttribute(a);
+      const o=el.dataset[key], tr=(LANG==="en")?TR[o]:undefined;
+      el.setAttribute(a, tr!==undefined?tr:o);
+    });
+  });
+}
+function roStatus(){ if(RO) setStatus(T("見る専用 · {0} 書き出し",window.MANDALA_EXPORTED_AT||"")); }
+function resetHelp(){
+  demos.forEach(d=>d.stop()); demos.length=0;
+  ["#helpFigs","#chipsItem","#chipsTheme"].forEach(q=>{ $(q).innerHTML=""; });
+  document.querySelectorAll("#help .demoslot").forEach(e=>{ e.innerHTML=""; });
+}
+function applyLang(){
+  document.documentElement.lang=LANG;
+  document.querySelectorAll("#langSw button").forEach(b=>b.classList.toggle("on",b.dataset.l===LANG));
+  buildRateList(); buildLegend();
+  resetHelp(); if(helpOpen){ buildHelp(); placeFigArrow(); demos.forEach(d=>d.start()); }
+  walkLang(document.body);
+  if(openRef){ setBubbleHints(openRef); if(openRef.startsWith("i:")) buildRows(); }
+  roStatus();
+  render();
+}
+function setLang(l){
+  if(l===LANG) return; LANG=l;
+  try{ if(!RO) localStorage.setItem(LANGKEY,l); }catch(e){}
+  closeMenu(); closeRate(); closeUse();
+  applyLang();
+}
+document.querySelectorAll("#langSw button").forEach(b=>{ b.onclick=()=>setLang(b.dataset.l); });
+
+if(init()){
+  if(RO){
+    document.body.classList.add("ro");
+    ["#chName","#chDeadline","#bLabel","#bDetail"].forEach(q=>{ $(q).readOnly=true; });
+    $("#bDetail").placeholder="(この項目の詳細は未入力です)";
+    $("#hint").textContent="見る専用: クリックで拡大・詳細を表示 ／ Esc: 戻る";
+    document.querySelector("#bubble .foot span:last-child").textContent="見る専用(編集はできません)";
+  }
+  refreshPicker(); applyLang();
+}
+})();
+</script>
+<script>if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }</script>
+</body>
+</html>
