@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>マンダラチャート Ver.3.7</title>
+<title>マンダラチャート Ver.3.9</title>
 <style>
 :root{
   --bg:#14171c; --cell:#3b414c; --gap:#0c0e11; --theme:#22262d; --center:#dcb85e;
@@ -333,6 +333,7 @@ svg.farrow polygon{fill:var(--accent);opacity:0;animation:fhead 3.6s ease-in-out
   <div class="figs" id="helpFigs"></div>
   <h3>評価のつけ方</h3>
   <p>9マスの画面で、項目の右下にある「評価」ボタンを押すと、進行状況を選ぶ吹き出しが開きます。上から 81〜100%・61〜80%・41〜60%・21〜40%・1〜20% の5段階です。選ぶと、その項目が色になります。何も選ばないうちはグレー(未評価)で、「未評価に戻す」でグレーに戻せます。マスに%の数字は出ません。色だけで感じ取ります。</p>
+  <p>まだ何も書いていない項目には、「評価」ボタンは出ません。先に項目のタイトルを書いてから、評価をつけてください。書いた文字を消すと、その項目の評価は計算に入りません。</p>
   <div class="chips" id="chipsItem"></div>
   <div class="demoslot" data-demo="rate"></div>
   <h3>目標とゴールの色</h3>
@@ -348,6 +349,7 @@ svg.farrow polygon{fill:var(--accent);opacity:0;animation:fhead 3.6s ease-in-out
   <h3>使わないマスを決める</h3>
   <p>周りの8マスは、全部埋めなくて大丈夫です。今回使わないマスは、上のボタンで使わない設定にして、バツにできます。バツになったマスは暗くなり、平均の計算にも数えません。目標(テーマ)も、8つ全部ではなく、7つなどにできます。使いたくなったら、そのマスをクリックして、使うを選べば戻ります。マスに書いた文章は消えません。</p>
   <p>上のボタンは、9マスの画面では「マスを使わない設定」、81マスの画面では「テーマを使わない設定」です。押してから、使わないマスをクリックします。終わるときは、もう一度ボタンを押すか Esc を押します。</p>
+  <p>周りの8つの目標(テーマ)や項目は、全部使わなくて大丈夫です。たとえば目標を5つだけ使いたいときは、使わない3つを「テーマを使わない設定」で×にします。×にしたものは平均に数えないので、残りの5つだけでゴールの色が決まります。項目も同じで、「マスを使わない設定」で×にできます。</p>
   <div class="demoslot" data-demo="off"></div>
   <h3>全体を見て、意識する</h3>
   <p>81マスの画面で、赤やピンクの多いところが、いま弱いところです。思ったよりできていないところ、ほかはできているのにここだけ遅れているところが、ひと目で分かります。そこに時間をかける、スケジュールを組み直すなど、次の動きを考えるきっかけにしてください。テーマを開けば、項目とメモも見られます。</p>
@@ -398,6 +400,8 @@ const LANGKEY = PREFIX + "lang";
 let LANG = "ja";
 { let l=null; try{ l = (!!window.MANDALA_READONLY) ? window.MANDALA_LANG : localStorage.getItem(LANGKEY); }catch(e){} if(l==="en"||l==="ja") LANG=l; }
 const TR = /*TR*/{
+"まだ何も書いていない項目には、「評価」ボタンは出ません。先に項目のタイトルを書いてから、評価をつけてください。書いた文字を消すと、その項目の評価は計算に入りません。": "The “Rate” button does not appear on an item that has no text yet. Write the item's title first, then rate it. If you erase the text, that item's rating is no longer counted.",
+"周りの8つの目標(テーマ)や項目は、全部使わなくて大丈夫です。たとえば目標を5つだけ使いたいときは、使わない3つを「テーマを使わない設定」で×にします。×にしたものは平均に数えないので、残りの5つだけでゴールの色が決まります。項目も同じで、「マスを使わない設定」で×にできます。": "You don't have to use all 8 sub-goals or items. For example, to use only 5 sub-goals, mark the other 3 as unused with “Set unused themes”. Cells marked × are not counted in the average, so the color of the goal is decided by the remaining 5 only. Items work the same way with “Set unused cells”.",
 "マンダラチャートとは": "What is a Mandala Chart?",
 "マンダラチャートは、大きな目標に向かうときの、地図のようなものです。真ん中にゴールを置き、その周りに大事な8つの目標、さらにその先に具体的な項目を並べます。自分で評価をつけて色で眺めると、できているところと弱いところがひと目で分かります。自分の今の状況を知り、次に何をするかを考える助けになります。": "A mandala chart is like a map for working toward a big goal. You put your goal in the center, surround it with 8 important sub-goals, and around each of those you list concrete items. Rate each item yourself and look at the colors: you can see at a glance what is going well and what is still weak. It helps you understand where you are now and think about what to do next.",
 "まず、書いてみる(書き込み方)": "First, try writing (how to enter text)",
@@ -494,7 +498,7 @@ const TR = /*TR*/{
 "マスを使わない設定": "Set unused cells",
 "テーマを使わない設定": "Set unused themes",
 "押してから、使わないマスをクリック(終わるにはもう一度押す / Esc)": "Press, then click the cells you won't use (press again or Esc to finish)",
-"設定中: クリックしたマスを使わない(もう一度クリックで使う)にします。終わるにはボタンをもう一度押すか Esc": "Setting: a clicked cell becomes unused (click again to use it). Press the button again or Esc to finish",
+"黄色い間は、使わないマスをクリックしてください。×になります。もう一度クリックすると元に戻ります。終わるときは、ボタンをもう一度押すか、Esc キーを押します。": "While it is yellow, click the cells you won't use. They turn into an ×. Click again to bring one back. To finish, press the button again or press the Esc key.",
 "使う項目 {0} / 8": "Items in use {0} / 8",
 "使うテーマ {0} / 8": "Themes in use {0} / 8",
 "✓ このテーマを使わない設定にしました(もう一度押すと使うに戻ります)": "✓ This theme is now unused (press again to use it)",
@@ -696,13 +700,14 @@ function parseRows(detail){   // 詳細はメモ。昔の行頭マーク(□◐�
 }
 function rowsToDetail(rows){ return rows.map(r=>r.text).filter(t=>t.trim()!=="").join("\n"); }
 function isOwnOff(ref){ const p=ref.split(":"); return p[0]==="t" ? !!data.themes[+p[1]].off : p[0]==="i" ? !!data.themes[+p[1]].items[+p[2]].off : false; }
-function itemLv(ti,k){ const it=data.themes[ti].items[k]; return it.off?0:(it.rate||0); }
+function effRate(it){ return (it.off||!String(it.text).trim())?0:(it.rate||0); }   // 文字が空の項目は評価に数えない
+function itemLv(ti,k){ return effRate(data.themes[ti].items[k]); }
 // テーマの%: 使っている項目の評価(1〜5を20%刻み)の平均。未評価の項目は0として数える。全部未評価ならnull(グレー)
 function themePct(ti){
   const T=data.themes[ti]; if(T.off) return null;
   const u=T.items.filter(i=>!i.off);
-  if(!u.length || u.every(i=>!i.rate)) return null;
-  return u.reduce((a,i)=>a+(i.rate||0),0)*20/u.length;
+  if(!u.length || u.every(i=>!effRate(i))) return null;
+  return u.reduce((a,i)=>a+effRate(i),0)*20/u.length;
 }
 function themeLv(ti){ const p=themePct(ti); return p==null?0:themeLvOfPct(p); }
 function themeActive(ti){ const T=data.themes[ti]; return !T.off && T.items.some(it=>!it.off); }
@@ -760,7 +765,7 @@ function render(){
   viewEl.classList.toggle("offmode",offMode);
   $("#crumb").textContent = view.mode==="all" ? (data.title||T("(目標が空です)")) : (data.themes[view.theme].label.replace(/\n+/g," ")||T("(空のテーマ)"));
   syncMeta();
-  document.title = T("マンダラチャート")+" Ver.3.7"+(RO?T("(見る専用)"):"")+" — "+data.title;
+  document.title = T("マンダラチャート")+" Ver.3.9"+(RO?T("(見る専用)"):"")+" — "+data.title;
   if(view.mode==="all"){ goalFlash=false; goalRbNew=false; }   // ゴールの演出は、81マス画面で1回見せたら終わり
   applyCeleb();
 }
@@ -780,7 +785,7 @@ function makeBar(){
   btn.onclick=toggleOffMode;
   const info=document.createElement("span"); info.className="vinfo";
   const used = zoom ? data.themes[view.theme].items.filter(it=>!it.off).length : data.themes.filter(t=>!t.off).length;
-  if(offMode) { info.classList.add("on"); info.textContent=T("設定中: クリックしたマスを使わない(もう一度クリックで使う)にします。終わるにはボタンをもう一度押すか Esc"); }
+  if(offMode) { info.classList.add("on"); info.textContent=T("黄色い間は、使わないマスをクリックしてください。×になります。もう一度クリックすると元に戻ります。終わるときは、ボタンをもう一度押すか、Esc キーを押します。"); }
   else info.textContent=T(zoom?"使う項目 {0} / 8":"使うテーマ {0} / 8",used);
   bar.append(btn,info);
   return bar;
@@ -877,7 +882,7 @@ function renderZoom(wrap){
   for(let p=0;p<9;p++){
     if(p===4) z.appendChild(mkCell(TH.label,"t:"+ti,"theme clickable"));
     else { const k=idx(p); z.appendChild(mkCell(TH.items[k].text,"i:"+ti+":"+k,"clickable",c=>{
-      if(RO || TH.items[k].off) return;
+      if(RO || TH.items[k].off || !TH.items[k].text.trim()) return;   // 空の項目には評価ボタンを出さない
       const b=document.createElement("button"); b.type="button"; b.className="rbtn"; b.textContent=T("評価"); b.title=T("進行状況を評価する(5段階の色)");
       c.appendChild(b);
     }));}
@@ -922,8 +927,8 @@ function openBubble(ref, cellEl){
   bubble.style.left=left+"px"; bubble.style.top=top+"px";
   bubble.classList.add(below?"below":"above");
   bubble.style.setProperty("--tx", Math.min(Math.max(r.left+r.width/2-left,22),w-22)+"px");
-  if(isItem){ if(!RO) focusRow(rowsState.length-1); }
-  else { const f=ref.startsWith("t:")?bLabel:bDetail; f.focus(); f.setSelectionRange(f.value.length,f.value.length); }
+  if(isItem){ if(!RO){ bLabel.focus(); bLabel.setSelectionRange(bLabel.value.length,bLabel.value.length); } }   // 項目は、まずタイトル欄に入力
+  else { const f=bLabel; f.focus(); f.setSelectionRange(f.value.length,f.value.length); }
 }
 /* 行動の行エディタ(状態マーク+文章) */
 let rowsState=[];
@@ -1001,7 +1006,7 @@ viewEl.addEventListener("click",e=>{
   }
   if(!RO && ref.startsWith("i:") && isOwnOff(ref)){ askUse(ref,c); return; }   // 使わないマス → 「使いますか?」
   const rb=e.target.closest(".rbtn");
-  if(rb && !RO && ref.startsWith("i:")){ openRate(ref,rb); return; }
+  if(rb && !RO && ref.startsWith("i:")){ if(node(ref).label.trim()) openRate(ref,rb); return; }
   if(lastClosed.ref===ref && Date.now()-lastClosed.t<400) return; // 同じマスを押して閉じた直後は開き直さない
   openBubble(ref,c);
 });
