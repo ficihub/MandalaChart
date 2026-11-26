@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>マンダラチャート Ver.3.9</title>
+<title>マンダラチャート Ver.4.2</title>
 <style>
 :root{
   --bg:#14171c; --cell:#3b414c; --gap:#0c0e11; --theme:#22262d; --center:#dcb85e;
@@ -14,7 +14,7 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--txt);display:flex;flex-direction:column;overflow:hidden;
   font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif}
-header{height:58px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid #232830}
+header{height:calc(58px + env(safe-area-inset-top,0px));flex:none;display:flex;align-items:center;gap:10px;padding:env(safe-area-inset-top,0px) 14px 0;border-bottom:1px solid #232830;background:var(--bg)}
 button{font:inherit;color:inherit;background:#262c36;border:1px solid #343c49;border-radius:8px;padding:7px 13px;cursor:pointer}
 button:hover{background:#2f3744}
 #back{background:var(--accent);color:#10131a;border:none;font-weight:700;font-size:17px;padding:9px 20px;display:none}
@@ -28,7 +28,7 @@ body.zoomed #back{display:inline-block}
 #chName,#chDeadline{font:inherit;font-size:13px;background:#1b2028;color:inherit;border:1px solid #343c49;border-radius:8px;padding:6px 9px;min-width:0}
 #chName::placeholder,#chDeadline::placeholder{color:#5d6574}
 select{font:inherit;background:#262c36;color:inherit;border:1px solid #343c49;border-radius:8px;padding:6px}
-main{flex:1;min-height:0;padding:12px 12px 28px;position:relative}
+main{flex:1;min-height:0;padding:12px 12px 6px;position:relative}
 #view{height:100%}
 
 /* 81マス全体 */
@@ -99,7 +99,7 @@ body.ro #btnExportMenu,body.ro #btnBackup{display:none}
 @keyframes rbspin{to{transform:rotate(360deg)}}
 .block.rated{border-color:var(--rc)}
 .block.go.rated:hover{border-color:var(--accent)}
-#legend{position:fixed;right:14px;bottom:6px;display:flex;gap:11px;font-size:11px;color:#8e96a3;pointer-events:none}
+#legend{flex:none;display:flex;flex-wrap:wrap;gap:4px 11px;justify-content:flex-end;padding:2px 14px calc(6px + env(safe-area-inset-bottom,0px));font-size:11px;color:#8e96a3}   /* 凡例は画面に重ねず、チャートの下に場所を取る */
 #legend span{display:inline-flex;align-items:center;gap:4px}
 #legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
 /* 行動の行エディタ */
@@ -261,8 +261,8 @@ svg.farrow polygon{fill:var(--accent);opacity:0;animation:fhead 3.6s ease-in-out
   #status{order:9;flex-basis:100%;text-align:left;min-width:0;font-size:12px}
   #chName,#chDeadline{flex:1 1 42%;font-size:16px}
   button{padding:6px 10px;font-size:13px} #langSw button{padding:6px 9px}
-  main{padding:8px 8px 34px} .vbar{height:auto;flex-wrap:wrap;gap:6px} .vbar .vinfo{font-size:12px}
-  #legend{left:8px;right:8px;bottom:max(4px,env(safe-area-inset-bottom));flex-wrap:wrap;gap:4px 9px;justify-content:flex-end;font-size:10px}
+  main{padding:8px 8px 4px} .vbar{height:auto;flex-wrap:wrap;gap:6px} .vbar .vinfo{font-size:12px}
+  #legend{padding:2px 8px calc(4px + env(safe-area-inset-bottom,0px));gap:3px 9px;font-size:10px}
   #bubble textarea{font-size:16px} .cell{font-size:clamp(8px,2.3vw,12px);padding:3px}
   .zoom{gap:8px} .zoom .cell{padding:8px;font-size:clamp(13px,3.8vw,19px)} .zoom .cell.theme,.zoom .cell.center{font-size:clamp(14px,4.2vw,21px)}
   #help{padding:2vh 6px} #help .hp{padding:14px 14px 22px} #help p{font-size:14px} #help .exi{font-size:14px}
@@ -282,7 +282,7 @@ svg.farrow polygon{fill:var(--accent);opacity:0;animation:fhead 3.6s ease-in-out
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="まんだら">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 </head>
@@ -358,7 +358,7 @@ svg.farrow polygon{fill:var(--accent);opacity:0;animation:fhead 3.6s ease-in-out
   <div class="exi"><b>見る専用ファイル(HTML)</b><span>81マスの全体から、テーマをクリックして9マスに拡大し、項目をクリックして、書いたメモまで見られます。ファイルとして保存して、ほかの端末で開いたり、人に見せたり、送ったりできます。ネットにつながなくても開けます。見るだけで、書き込みや評価の変更はできません。</span></div>
   <div class="exi"><b>画像(JPEG)</b><span>「全体(9×9)」は、81マス全体を色つきの1枚の画像にします。「いま開いているテーマ(3×3)」は、開いている目標1つ分の9マスだけを1枚の画像にします(9マスの画面を開いているときに選べます)。メモは入りません。保管したり、人に送ったりするのに使えます。</span></div>
   <div class="exi"><b>PDF</b><span>JPEGと同じ内容を、PDFファイルにします。「全体(9×9)」と「いま開いているテーマ(3×3)」のほか、「使うテーマの3×3を一括」は、使っているテーマごとに1ページずつ、全部まとめて1つのPDFになります。印刷したり、資料として送ったりするのに向いています。</span></div>
-  <p class="exn">ファイル名は「月.日.年 ゴールの名前」の形です。テーマごとの書き出しは、そのあとにテーマの名前が付きます。同じ日に同じものをもう一度書き出すと、日付のすぐあとに(1)、(2)…と番号が付いて、前のファイルは上書きされません。</p>
+  <p class="exn">ファイル名は「月.日.年 チャート名」の形です。チャート名が空のときは、ゴールの名前が入ります。テーマごとの書き出しは、そのあとにテーマの名前が付きます。同じ日に同じものをもう一度書き出すと、日付のすぐあとに(1)、(2)…と番号が付いて、前のファイルは上書きされません。</p>
   <h3>バックアップ(続きから使う・共有する)</h3>
   <p>上の「バックアップ ▾」から、いまのチャートを JSON という1つのデータファイルに書き出せます。評価もメモも全部入っています。「読み込み(JSON)」でこのアプリに入れると、書き出した時点の状態がそっくり戻ります。</p>
   <p>使い道は3つです。①自分のデータの控え: パソコンやブラウザが変わったり、保存データが消えたりしても戻せます。②人との共有: 書き出したファイルを渡して、相手が読み込めば、同じチャートを使えます。相手が自分のチャートを使いたいときは、「新しいチャートを始める」で全部消してから、自分のファイルを読み込みます。③続きを使う: 別のチャートを作ったあとでも、前に作ったチャートを読み込めば、また続きから使えます。</p>
@@ -435,7 +435,7 @@ const TR = /*TR*/{
 "「全体(9×9)」は、81マス全体を色つきの1枚の画像にします。「いま開いているテーマ(3×3)」は、開いている目標1つ分の9マスだけを1枚の画像にします(9マスの画面を開いているときに選べます)。メモは入りません。保管したり、人に送ったりするのに使えます。": "“Whole chart (9×9)” makes one colored image of all 81 cells. “Currently open theme (3×3)” makes one image of just the 9 cells of the theme you have open (available while a 9-cell view is open). Memos are not included. Handy for keeping or sending.",
 "PDF": "PDF",
 "JPEGと同じ内容を、PDFファイルにします。「全体(9×9)」と「いま開いているテーマ(3×3)」のほか、「使うテーマの3×3を一括」は、使っているテーマごとに1ページずつ、全部まとめて1つのPDFになります。印刷したり、資料として送ったりするのに向いています。": "The same content as JPEG, as a PDF file. Besides “Whole chart (9×9)” and “Currently open theme (3×3)”, “All themes in use, 3×3 each” puts each theme in use on its own page of a single PDF. Good for printing or sending as a document.",
-"ファイル名は「月.日.年 ゴールの名前」の形です。テーマごとの書き出しは、そのあとにテーマの名前が付きます。同じ日に同じものをもう一度書き出すと、日付のすぐあとに(1)、(2)…と番号が付いて、前のファイルは上書きされません。": "File names look like “month.day.year goal-name”. Per-theme exports add the theme's name after that. If you export the same thing again on the same day, a number (1), (2)… goes right after the date, and the earlier file is never overwritten.",
+"ファイル名は「月.日.年 チャート名」の形です。チャート名が空のときは、ゴールの名前が入ります。テーマごとの書き出しは、そのあとにテーマの名前が付きます。同じ日に同じものをもう一度書き出すと、日付のすぐあとに(1)、(2)…と番号が付いて、前のファイルは上書きされません。": "File names look like “month.day.year chart-name”. If the chart name is empty, the goal name is used instead. Per-theme exports add the theme's name after that. If you export the same thing again on the same day, a number (1), (2)… goes right after the date, and the earlier file is never overwritten.",
 "バックアップ(続きから使う・共有する)": "Backup (continue later / share)",
 "上の「バックアップ ▾」から、いまのチャートを JSON という1つのデータファイルに書き出せます。評価もメモも全部入っています。「読み込み(JSON)」でこのアプリに入れると、書き出した時点の状態がそっくり戻ります。": "Use “Backup ▾” at the top to save the current chart as a single data file called JSON. Ratings and memos are all included. Load it back with “Import (JSON)” and the chart returns exactly as it was when you exported.",
 "使い道は3つです。①自分のデータの控え: パソコンやブラウザが変わったり、保存データが消えたりしても戻せます。②人との共有: 書き出したファイルを渡して、相手が読み込めば、同じチャートを使えます。相手が自分のチャートを使いたいときは、「新しいチャートを始める」で全部消してから、自分のファイルを読み込みます。③続きを使う: 別のチャートを作ったあとでも、前に作ったチャートを読み込めば、また続きから使えます。": "It is useful in three ways. (1) A copy of your own data: restore it even if you change computers or browsers, or the saved data is lost. (2) Sharing with others: hand over the file and they can import it to use the same chart. If they want to use their own chart, they choose “Start a new chart” to erase everything first, then import their own file. (3) Continuing later: even after making a different chart, import an earlier one to pick up where you left off.",
@@ -765,7 +765,7 @@ function render(){
   viewEl.classList.toggle("offmode",offMode);
   $("#crumb").textContent = view.mode==="all" ? (data.title||T("(目標が空です)")) : (data.themes[view.theme].label.replace(/\n+/g," ")||T("(空のテーマ)"));
   syncMeta();
-  document.title = T("マンダラチャート")+" Ver.3.9"+(RO?T("(見る専用)"):"")+" — "+data.title;
+  document.title = T("マンダラチャート")+" Ver.4.2"+(RO?T("(見る専用)"):"")+" — "+data.title;
   if(view.mode==="all"){ goalFlash=false; goalRbNew=false; }   // ゴールの演出は、81マス画面で1回見せたら終わり
   applyCeleb();
 }
@@ -1472,7 +1472,7 @@ function download(blob,name){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }
-function chartBase(){ return fname(data.title); }
+function chartBase(){ return fname(data.name||data.title); }   // ファイル名の元: チャート名。空ならゴールの名前
 function outName(kind,ext){ return dstamp()+" "+chartBase()+(kind?" "+kind:"")+"."+ext; }
 /* 同じ日に同じ名前を書き出すと、日付のすぐあとに (1)(2)… を付ける(上書きしない) */
 function withSeq(name,n){ return n>0 ? name.replace(/^(\d+\.\d+\.\d+)/,"$1("+n+")") : name; }
